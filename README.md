@@ -1,4 +1,4 @@
-# zotrm-bridge
+# zotrm
 
 Read your Zotero papers on a **reMarkable Paper Pro**, then get your handwritten
 notes back into Zotero — with one command.
@@ -70,7 +70,7 @@ and paste it into the Terminal. Done — you won't need to do this again.
 ### Step 3 — Install `zotrm`
 
 ```sh
-uv tool install zotrm-bridge
+uv tool install zotrm
 ```
 
 (If the tool is not on PyPI yet, download this project, go into its folder in the
@@ -203,4 +203,4 @@ uv build                # build the wheel + sdist into dist/
 
    (Or set the token once as `export UV_PUBLISH_TOKEN=<token>` and just run `uv publish`.)
 
-After it is live, anyone can install it with `uv tool install zotrm-bridge`.
+After it is live, anyone can install it with `uv tool install zotrm`.
