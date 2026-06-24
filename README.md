@@ -1,6 +1,6 @@
 # zotrm
 
-[![CI](https://github.com/dipta007/zotrm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipta007/zotrm/actions/workflows/ci.yml)
+[![CI](https://github.com/dipta007/zotRm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipta007/zotRm/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/zotrm.svg)](https://pypi.org/project/zotrm/)
 [![Python](https://img.shields.io/pypi/pyversions/zotrm.svg)](https://pypi.org/project/zotrm/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

@@ -152,7 +152,7 @@ git push origin v0.1.0
 
 `.github/workflows/release.yml` runs the full checks, builds, and publishes to PyPI via
 **trusted publishing** (OIDC — no tokens stored). One-time setup on PyPI: project →
-Settings → Publishing → add a trusted publisher (owner `dipta007`, repo `zotrm`, workflow
+Settings → Publishing → add a trusted publisher (owner `dipta007`, repo `zotRm`, workflow
 `release.yml`, environment `pypi`), and create a `pypi` environment in the repo settings.
 
 ### Publishing manually

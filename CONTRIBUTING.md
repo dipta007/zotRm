@@ -6,7 +6,7 @@ Thanks for your interest in improving zotrm! This project uses
 ## Set up for development
 
 ```sh
-git clone https://github.com/dipta007/zotrm
+git clone https://github.com/dipta007/zotRm
 cd zotrm
 uv sync              # creates .venv and installs deps + dev tools
 uv pip install -e .  # editable install, so `zotrm` reflects your edits

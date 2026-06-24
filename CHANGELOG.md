@@ -21,5 +21,5 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotrm/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/dipta007/zotrm/releases/tag/v0.1.0
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/dipta007/zotRm/releases/tag/v0.1.0
