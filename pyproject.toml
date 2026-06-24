@@ -1,0 +1,41 @@
+[project]
+name = "zotrm-bridge"
+version = "0.1.0"
+description = "Bridge a Zotero collection to a reMarkable Paper Pro: push PDFs, pull annotations."
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["zotero", "remarkable", "pdf", "annotations", "rmapi"]
+authors = [{ name = "sun" }]
+dependencies = ["pyzotero>=1.5"]
+
+[project.scripts]
+zotrm = "zotrm.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zotrm"]
+
+[dependency-groups]
+dev = ["mypy>=1.10", "pytest>=8.0", "ruff>=0.5"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["pyzotero.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
