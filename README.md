@@ -3,16 +3,16 @@
 [![CI](https://github.com/dipta007/zotRm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipta007/zotRm/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/zotrm.svg)](https://pypi.org/project/zotrm/)
 [![Python](https://img.shields.io/pypi/pyversions/zotrm.svg)](https://pypi.org/project/zotrm/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/dipta007/zotRm/blob/main/LICENSE)
 
 Read your Zotero papers on a **reMarkable Paper Pro**, then get your handwritten
 notes back into Zotero — with one command.
 
 ## Demo
 
-![zotrm in action: push papers, annotate on the tablet, pull them back](docs/demo.gif)
+![zotrm in action: push papers, annotate on the tablet, pull them back](https://raw.githubusercontent.com/dipta007/zotRm/main/docs/demo.gif)
 
-> _Recording the GIF: see [how to record the demo](docs/advanced-usage.md#recording-the-demo-gif)._
+> _Recording the GIF: see [how to record the demo](https://github.com/dipta007/zotRm/blob/main/docs/advanced-usage.md#recording-the-demo-gif)._
 
 **What it does, in plain words:**
 
@@ -200,7 +200,7 @@ anything already done. Re-run it (or schedule it) freely.
 
 **Can I use it with more than one Zotero library?**
 Yes — keep separate config files and pass `--config`. See
-[advanced usage](docs/advanced-usage.md#global-flags).
+[advanced usage](https://github.com/dipta007/zotRm/blob/main/docs/advanced-usage.md#global-flags).
 
 **Does it work on Windows?**
 Not currently. `zotrm` targets macOS and Linux (the `cron` scheduler is Unix-only).
@@ -213,12 +213,12 @@ anywhere except Zotero's own API. `zotrm config --show` masks it.
 
 ## More
 
-- **[Advanced usage](docs/advanced-usage.md)** — editing the config file by hand, the full
-  settings reference, how the scheduled sync works, multiple configs, and deeper
-  troubleshooting.
-- **[Contributing](CONTRIBUTING.md)** — set up the project for development and run the
-  tests.
+- **[Advanced usage](https://github.com/dipta007/zotRm/blob/main/docs/advanced-usage.md)** —
+  editing the config file by hand, the full settings reference, how the scheduled sync
+  works, multiple configs, and deeper troubleshooting.
+- **[Contributing](https://github.com/dipta007/zotRm/blob/main/CONTRIBUTING.md)** — set up
+  the project for development and run the tests.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/dipta007/zotRm/blob/main/LICENSE).
