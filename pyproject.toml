@@ -8,6 +8,20 @@ license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["zotero", "remarkable", "pdf", "annotations", "rmapi"]
 authors = [{ name = "Shubhashis Roy Dipta" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Utilities",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "pyzotero>=1.5",
     "questionary>=2.0",

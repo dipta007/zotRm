@@ -114,29 +114,56 @@ python -m zotrm status
   remember annotations only return as a flattened PDF, never as editable Zotero
   highlights.
 
+## Recording the demo GIF
+
+The README shows `docs/demo.gif`. A short (10–20s) clip of `zotrm push` → annotating on the
+tablet → `zotrm pull` is the most valuable thing in the README. A few easy ways:
+
+- **[vhs](https://github.com/charmbracelet/vhs)** (scripted, reproducible terminal GIFs):
+
+  ```sh
+  brew install vhs
+  vhs demo.tape   # a small script of the commands; outputs docs/demo.gif
+  ```
+
+- **[asciinema](https://asciinema.org/)** + [agg](https://github.com/asciinema/agg) to
+  convert the cast to a GIF:
+
+  ```sh
+  asciinema rec demo.cast
+  agg demo.cast docs/demo.gif
+  ```
+
+- **Screen capture** (QuickTime on macOS, or [Kap](https://getkap.co/)) of the terminal and
+  the tablet, exported to GIF.
+
+Keep it tight: a real collection, a couple of papers, and the round trip. Commit the result
+as `docs/demo.gif`.
+
 ## Publishing to PyPI (for maintainers)
 
+The easiest path is the **automated release workflow**: bump `version` in `pyproject.toml`,
+update `CHANGELOG.md`, commit, then push a matching tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+`.github/workflows/release.yml` runs the full checks, builds, and publishes to PyPI via
+**trusted publishing** (OIDC — no tokens stored). One-time setup on PyPI: project →
+Settings → Publishing → add a trusted publisher (owner `dipta007`, repo `zotrm`, workflow
+`release.yml`, environment `pypi`), and create a `pypi` environment in the repo settings.
+
+### Publishing manually
+
+If you prefer to publish from your machine:
+
 1. Bump `version` in `pyproject.toml` (PyPI rejects re-uploading a version).
-2. Build fresh artifacts:
-
-   ```sh
-   rm -rf dist && uv build
-   ```
-
+2. Build fresh artifacts: `rm -rf dist && uv build`.
 3. Get an API token from <https://pypi.org/manage/account/token/>.
-4. Try **TestPyPI** first (a safe practice copy of PyPI):
-
-   ```sh
-   uv publish --publish-url https://test.pypi.org/legacy/ --token <test-token>
-   ```
-
-5. When happy, publish for real:
-
-   ```sh
-   uv publish --token <pypi-token>
-   ```
-
-   (Or set `export UV_PUBLISH_TOKEN=<token>` once and just run `uv publish`.)
+4. Try **TestPyPI** first: `uv publish --publish-url https://test.pypi.org/legacy/ --token <test-token>`.
+5. Publish for real: `uv publish --token <pypi-token>` (or set `UV_PUBLISH_TOKEN` once).
 
 After it is live, anyone can install it with `uv tool install zotrm`.
 ```

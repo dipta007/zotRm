@@ -1,0 +1,40 @@
+name: Release
+
+# Publishes to PyPI when a version tag (e.g. v0.1.0) is pushed.
+#
+# Uses PyPI "trusted publishing" (OIDC) — no API token needed. One-time setup on PyPI:
+#   PyPI → your project → Settings → Publishing → Add a trusted publisher
+#     Owner: dipta007 | Repo: zotrm | Workflow: release.yml | Environment: pypi
+# Then create a `pypi` environment in the repo settings.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Verify the package before publishing
+        run: |
+          uv sync --locked
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy src
+          uv run pytest
+
+      - name: Build
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

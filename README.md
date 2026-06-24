@@ -1,9 +1,18 @@
 # zotrm
 
 [![CI](https://github.com/dipta007/zotrm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipta007/zotrm/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/zotrm.svg)](https://pypi.org/project/zotrm/)
+[![Python](https://img.shields.io/pypi/pyversions/zotrm.svg)](https://pypi.org/project/zotrm/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Read your Zotero papers on a **reMarkable Paper Pro**, then get your handwritten
 notes back into Zotero — with one command.
+
+## Demo
+
+![zotrm in action: push papers, annotate on the tablet, pull them back](docs/demo.gif)
+
+> _Recording the GIF: see [how to record the demo](docs/advanced-usage.md#recording-the-demo-gif)._
 
 **What it does, in plain words:**
 
@@ -18,6 +27,21 @@ done. It is safe to run again and again.
 > **One honest limit (this is reMarkable's behavior, not a bug here):**
 > Your highlights and handwriting come back as part of the PDF image — "painted onto"
 > the page. They do **not** come back as clickable Zotero highlights.
+
+## Why zotrm?
+
+If you read research papers on a reMarkable, getting them on and off the tablet is fiddly:
+export each PDF, drag it into the reMarkable app, and later dig the annotated copy back
+out and re-file it in Zotero. zotrm makes that **one command in each direction**, driven by
+the collection you already curate in Zotero:
+
+- **No manual file shuffling** — it reads your Zotero collection and uploads the PDFs for you.
+- **Folders match your library** — Zotero sub-collections become nested folders on the tablet.
+- **Nothing pushed or pulled twice** — progress is tracked with Zotero tags, so it's safe to
+  re-run or schedule with `zotrm cron`.
+- **No extra database or account** — just your Zotero API key and the `rmapi` tool.
+
+It's a small, focused CLI — not a sync daemon or a cloud service.
 
 ---
 
@@ -156,6 +180,34 @@ zotrm --dry-run push
   you have a reMarkable Connect subscription.
 
 Run any command with `--dry-run` first if you're unsure — it changes nothing.
+
+---
+
+## FAQ
+
+**Do I need a reMarkable Connect subscription?**
+Yes, in practice. `zotrm` talks to the reMarkable **cloud** through `rmapi`, and two-way
+document sync (uploading PDFs and downloading annotated ones) needs Connect.
+
+**Why don't my highlights come back as real Zotero highlights?**
+The reMarkable returns a flattened PDF — your marks are baked into the page image. That's a
+reMarkable limitation, not something `zotrm` can change. You get a faithful annotated PDF
+re-attached to the item, just not editable highlight objects.
+
+**Does it duplicate files if I run it again?**
+No. It tags items `rm:synced` once pushed and `rm:annotated` once pulled back, and skips
+anything already done. Re-run it (or schedule it) freely.
+
+**Can I use it with more than one Zotero library?**
+Yes — keep separate config files and pass `--config`. See
+[advanced usage](docs/advanced-usage.md#global-flags).
+
+**Does it work on Windows?**
+Not currently. `zotrm` targets macOS and Linux (the `cron` scheduler is Unix-only).
+
+**Is my Zotero API key safe?**
+It's stored only in your local config file (`~/.config/zotrm/config.ini`) and never sent
+anywhere except Zotero's own API. `zotrm config --show` masks it.
 
 ---
 
