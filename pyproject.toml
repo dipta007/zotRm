@@ -32,7 +32,7 @@ zotrm = "zotrm.cli:main"
 
 [project.urls]
 Homepage = "https://roydipta.com"
-Repository = "https://github.com/dipta007/zotrm"
+Repository = "https://github.com/dipta007/zotRm"
 
 [build-system]
 requires = ["hatchling"]

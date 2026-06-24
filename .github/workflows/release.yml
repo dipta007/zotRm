@@ -4,7 +4,7 @@ name: Release
 #
 # Uses PyPI "trusted publishing" (OIDC) — no API token needed. One-time setup on PyPI:
 #   PyPI → your project → Settings → Publishing → Add a trusted publisher
-#     Owner: dipta007 | Repo: zotrm | Workflow: release.yml | Environment: pypi
+#     Owner: dipta007 | Repo: zotRm | Workflow: release.yml | Environment: pypi
 # Then create a `pypi` environment in the repo settings.
 
 on:
