@@ -97,28 +97,54 @@ the Terminal. Done — you won't do this again.
 uv tool install zotrm
 ```
 
-### Step 4 — Set up your account (answer a few questions)
+### Step 4 — Set up your account
 
-Just run:
+A friendly wizard fills in your settings for you. First grab two things from Zotero, then
+run it.
+
+**4a. Get your Zotero details** (about a minute)
+
+Open <https://www.zotero.org/settings/keys> and log in. You need two things from this page:
+
+1. **Your library ID** — near the top it reads *"Your userID for use in API calls is
+   **1234567**."* That number is your library ID.
+2. **An API key** — click **Create new private key**, give it a name, tick **Allow library
+   access** with **both read and write** (write lets `zotrm` save tags and attach your
+   annotated PDFs), click **Save Key**, and **copy the key** — you can't see it again later.
+
+**4b. Make a collection to sync** (recommended)
+
+In the Zotero app, create a collection — say, named `reMarkable` — and drag in a few papers
+you want to read. `zotrm` only ever touches papers in this one collection. Start with a
+**throwaway collection of 1–2 papers** while you try things out.
+
+**4c. Run the wizard**
 
 ```sh
 zotrm config
 ```
 
-It asks you a few simple questions (use the arrow keys and Enter), then checks that your
-details work. To answer the two Zotero questions:
+Use the arrow keys ↑↓ to choose and Enter to confirm. Here is every question and what to
+put:
 
-- Open <https://www.zotero.org/settings/keys>.
-- Your **library ID** is the number shown as "Your userID".
-- Click **Create new private key**, allow read **and write**, and copy the key it gives
-  you.
+| Question | What to enter |
+| --- | --- |
+| **Zotero library ID** | The userID number from step 4a. |
+| **Zotero API key** | The key from step 4a (hidden as you type/paste). |
+| **Library type** | `user` — choose `group` only for a shared group library. |
+| **Local Zotero storage dir** _(optional)_ | Where the Zotero app keeps your PDFs, usually `~/Zotero/storage`. Lets `zotrm` read files from disk instead of re-downloading. Press Enter to skip if unsure. |
+| **Zotero collection to sync** | The collection name from step 4b (e.g. `reMarkable`) — must match exactly, capitals included. |
+| **reMarkable folder** | Where papers land on the tablet, e.g. `/Papers` (created if missing). |
+| **Mirror sub-collections?** | `Yes` recreates your Zotero sub-collections as nested folders on the tablet; `No` puts everything in one folder. |
+| **Where to save annotated PDFs** | A folder on your computer for the marked-up copies, e.g. `~/Zotero/annotated`. |
+| **Re-attach annotated PDF?** | `Yes` adds the annotated copy back onto the paper in Zotero. |
 
-> **Tip:** In Zotero, make a collection (for example named `reMarkable`) and drag the
-> papers you want to read into it. Give that same name when the wizard asks for the
-> collection.
+When you finish, it checks your details (you'll see `✓ Zotero connection OK`), warns if
+`rmapi` is missing, and saves everything to `~/.config/zotrm/config.ini`.
 
-That's it — your settings are saved automatically. (The very first time you run any
-command, this wizard starts on its own if you haven't set up yet.)
+> The wizard also starts on its own the first time you run any command before setting up.
+> To change settings later, run `zotrm config` again; to see what's saved (API key masked),
+> run `zotrm config --show`.
 
 ### Step 5 — Use it
 
