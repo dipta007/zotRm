@@ -140,30 +140,70 @@ tablet → `zotrm pull` is the most valuable thing in the README. A few easy way
 Keep it tight: a real collection, a couple of papers, and the round trip. Commit the result
 as `docs/demo.gif`.
 
-## Publishing to PyPI (for maintainers)
+## Making a release (for maintainers)
 
-The easiest path is the **automated release workflow**: bump `version` in `pyproject.toml`,
-update `CHANGELOG.md`, commit, then push a matching tag:
+Releases are automated: pushing a `vX.Y.Z` tag triggers
+[`.github/workflows/release.yml`](../.github/workflows/release.yml), which runs the full
+checks, builds the package, and publishes to PyPI via **trusted publishing** (OIDC — no
+tokens stored).
+
+### One-time setup (already done for this repo)
+
+- **PyPI** → project `zotrm` → Settings → Publishing → add a trusted publisher: owner
+  `dipta007`, repo `zotRm`, workflow `release.yml`, environment `pypi`.
+- **GitHub** → repo Settings → Environments → create `pypi`, with "Deployment branches and
+  tags" allowing tags (No restriction, or a `v*` rule).
+
+### Cut a release
+
+1. Be on an up-to-date, green `main`: `git switch main && git pull`.
+2. Bump `version` in `pyproject.toml` following [SemVer](https://semver.org/) — patch for
+   fixes, minor for features, major for breaking changes.
+3. Update `CHANGELOG.md`: rename `Unreleased` to the new version with today's date, add a
+   fresh empty `Unreleased` section, and update the compare links at the bottom.
+4. Commit and push to `main`:
+
+   ```sh
+   git commit -am "Release v0.2.0"
+   git push origin main
+   ```
+
+5. Tag and push the tag — **this is what publishes**:
+
+   ```sh
+   git tag -a v0.2.0 -m "zotrm 0.2.0"
+   git push origin v0.2.0
+   ```
+
+6. Watch it: `gh run watch --repo dipta007/zotRm` (or the Actions tab).
+7. Verify it's live:
+
+   ```sh
+   uvx zotrm@0.2.0 --help        # pulls the new version straight from PyPI
+   ```
+
+   and check <https://pypi.org/project/zotrm/>.
+8. _(Optional)_ Publish GitHub release notes from the tag:
+
+   ```sh
+   gh release create v0.2.0 --title v0.2.0 --notes-from-tag
+   ```
+
+**Notes**
+
+- The tag and `pyproject.toml` version must match (`v0.2.0` ↔ `version = "0.2.0"`).
+- **Versions are immutable** — PyPI never allows re-uploading a version. If a release is
+  broken, bump the patch and release again. (`skip-existing` is on, so re-pushing an
+  existing version's tag is a harmless no-op rather than a failure.)
+
+### Publishing manually (fallback)
+
+If you ever need to publish without the workflow:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-`.github/workflows/release.yml` runs the full checks, builds, and publishes to PyPI via
-**trusted publishing** (OIDC — no tokens stored). One-time setup on PyPI: project →
-Settings → Publishing → add a trusted publisher (owner `dipta007`, repo `zotRm`, workflow
-`release.yml`, environment `pypi`), and create a `pypi` environment in the repo settings.
-
-### Publishing manually
-
-If you prefer to publish from your machine:
-
-1. Bump `version` in `pyproject.toml` (PyPI rejects re-uploading a version).
-2. Build fresh artifacts: `rm -rf dist && uv build`.
-3. Get an API token from <https://pypi.org/manage/account/token/>.
-4. Try **TestPyPI** first: `uv publish --publish-url https://test.pypi.org/legacy/ --token <test-token>`.
-5. Publish for real: `uv publish --token <pypi-token>` (or set `UV_PUBLISH_TOKEN` once).
-
-After it is live, anyone can install it with `uv tool install zotrm`.
+rm -rf dist && uv build
+# Rehearse on TestPyPI first:
+uv publish --publish-url https://test.pypi.org/legacy/ --token <testpypi-token>
+# Then for real (token from https://pypi.org/manage/account/token/):
+uv publish --token <pypi-token>
 ```
