@@ -16,9 +16,13 @@ class FakeZotero:
         self.files = {}  # attachment key -> bytes
         self.added_tags = []  # (item key, tag)
         self.attachments = []  # (paths, parent key)
+        self.item_count = 0  # value returned by num_items()
 
     def everything(self, result):
         return result
+
+    def num_items(self):
+        return self.item_count
 
     def collections(self):
         return self.collections_list

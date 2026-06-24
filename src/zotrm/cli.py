@@ -7,6 +7,7 @@ flags mirror the original single-file tool exactly.
 from __future__ import annotations
 
 import argparse
+import sys
 import tempfile
 from configparser import ConfigParser
 from pathlib import Path
@@ -180,8 +181,47 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("pull", help="bring annotated papers back into Zotero")
     sub.add_parser("status", help="show the queue / on-device / done lists")
     sub.add_parser("sync", help="pull then push, in one go")
+    config_p = sub.add_parser("config", help="create or edit your configuration")
+    config_p.add_argument(
+        "--show", action="store_true", help="print the current config location and values"
+    )
+    cron_p = sub.add_parser("cron", help="schedule an automatic sync")
+    cron_p.add_argument("--remove", action="store_true", help="remove the scheduled sync")
+    cron_p.add_argument("--show", action="store_true", help="show the scheduled sync, if any")
 
     args = p.parse_args(argv)
+
+    if args.command == "config":
+        from zotrm.wizard import run_config_wizard, show_config
+
+        if args.show:
+            show_config(args.config)
+        else:
+            run_config_wizard(args.config)
+        return
+
+    if args.command == "cron":
+        from zotrm.cron import remove_cron_job, run_cron_setup, show_cron_job
+
+        if args.remove:
+            log("Removed the scheduled sync." if remove_cron_job() else "No scheduled sync found.")
+        elif args.show:
+            line = show_cron_job()
+            log(line if line else "No scheduled sync found.")
+        else:
+            run_cron_setup(args.config)
+        return
+
+    # push / pull / status / sync all need a config. On first run, if we have a
+    # terminal, launch the wizard; otherwise fall through to a clean error.
+    if not args.config.exists() and sys.stdin.isatty() and sys.stdout.isatty():
+        log("No config found yet — let's set it up first.\n")
+        from zotrm.wizard import run_config_wizard
+
+        if not run_config_wizard(args.config):
+            return
+        log("")
+
     cfg = load_config(args.config)
 
     if args.command == "push":
