@@ -204,3 +204,7 @@ uv build                # build the wheel + sdist into dist/
    (Or set the token once as `export UV_PUBLISH_TOKEN=<token>` and just run `uv publish`.)
 
 After it is live, anyone can install it with `uv tool install zotrm`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
