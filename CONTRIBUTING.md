@@ -31,11 +31,15 @@ tests/            # pytest suite (pyzotero + rmapi + questionary are mocked)
 All four must pass before a change is ready:
 
 ```sh
-uv run pytest          # tests
+uv run pytest          # tests + 100% coverage gate
 uv run ruff check .    # lint
 uv run ruff format .   # format (use --check in CI)
 uv run mypy src        # type-check (strict)
 ```
+
+GitHub Actions runs these same four gates on every push and pull request, across
+Python 3.11–3.13 (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)). The test
+step enforces 100% coverage, so a change that drops coverage fails CI.
 
 ## Code style
 
