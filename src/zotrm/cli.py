@@ -28,6 +28,11 @@ def _truthy(value: str) -> bool:
     return value.lower() in ("1", "true", "yes")
 
 
+def _interactive() -> bool:
+    """True when we have a real terminal (so it's safe to prompt)."""
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def cmd_push(cfg: ConfigParser, dry_run: bool) -> None:
     zot = connect(cfg)
     rm = cfg["remarkable"]
@@ -214,7 +219,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # push / pull / status / sync all need a config. On first run, if we have a
     # terminal, launch the wizard; otherwise fall through to a clean error.
-    if not args.config.exists() and sys.stdin.isatty() and sys.stdout.isatty():
+    if not args.config.exists() and _interactive():
         log("No config found yet — let's set it up first.\n")
         from zotrm.wizard import run_config_wizard
 
@@ -230,7 +235,7 @@ def main(argv: list[str] | None = None) -> None:
         cmd_pull(cfg, args.dry_run)
     elif args.command == "status":
         cmd_status(cfg, args.dry_run)
-    elif args.command == "sync":
+    else:  # sync = pull then push
         cmd_pull(cfg, args.dry_run)
         cmd_push(cfg, args.dry_run)
 
