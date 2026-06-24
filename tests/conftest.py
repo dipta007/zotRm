@@ -60,6 +60,42 @@ def make_pdf_child(key, filename):
     return {"key": key, "data": {"contentType": "application/pdf", "filename": filename}}
 
 
+class _Answer:
+    def __init__(self, value):
+        self.value = value
+
+    def ask(self):
+        return self.value
+
+
+class FakeQuestionary:
+    """Returns canned answers in the order the prompts are shown."""
+
+    def __init__(self, answers):
+        self._answers = list(answers)
+        self._i = 0
+
+    def _next(self):
+        value = self._answers[self._i]
+        self._i += 1
+        return _Answer(value)
+
+    def text(self, *a, **k):
+        return self._next()
+
+    def password(self, *a, **k):
+        return self._next()
+
+    def select(self, *a, **k):
+        return self._next()
+
+    def confirm(self, *a, **k):
+        return self._next()
+
+    def path(self, *a, **k):
+        return self._next()
+
+
 class RmapiRecorder:
     """Records every rmapi invocation and returns a successful result."""
 

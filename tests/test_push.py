@@ -1,6 +1,7 @@
 """push: skip synced / PDF-less items, tag on success, and respect --dry-run."""
 
 import configparser
+import subprocess
 
 import pytest
 from conftest import make_collection, make_item, make_pdf_child
@@ -76,6 +77,41 @@ def test_push_dry_run_changes_nothing(cfg, fake_zot, rmapi_run, monkeypatch):
 
     assert fake_zot.added_tags == []
     assert rmapi_run.calls == []  # no mkdir, no put
+
+
+def test_push_downloads_via_api_when_not_local(cfg, fake_zot, rmapi_run, monkeypatch):
+    parser, _storage = cfg  # storage dir exists but contains no PDF -> API fallback
+    good = make_item("G", "Pushable paper")
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [good]}
+    fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
+    fake_zot.files = {"attG": b"%PDF downloaded"}
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    cmd_push(parser, dry_run=False)
+
+    assert fake_zot.added_tags == [("G", "rm:synced")]
+    put_calls = [call for call in rmapi_run.calls if call[1] == "put"]
+    assert put_calls[0][2].endswith("good.pdf")  # uploaded the temp download
+
+
+def test_push_failed_upload_is_not_tagged(cfg, fake_zot, monkeypatch):
+    parser, storage = cfg
+    good = make_item("G", "Pushable paper")
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [good]}
+    fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
+    _store_pdf(storage, "attG", "good.pdf")
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    def failing_run(cmd, **kwargs):
+        code = 0 if cmd[1] == "mkdir" else 1  # the upload fails
+        return subprocess.CompletedProcess(cmd, code, stdout="", stderr="boom")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", failing_run)
+
+    cmd_push(parser, dry_run=False)
+    assert fake_zot.added_tags == []  # failed upload -> not marked synced
 
 
 def test_rmapi_missing_exits_cleanly(monkeypatch):

@@ -108,6 +108,74 @@ def test_pull_skips_unsynced_and_done(cfg, fake_zot, monkeypatch):
     assert fake_zot.attachments == []
 
 
+def test_pull_reattach_error_still_tags_done(cfg, fake_zot, monkeypatch):
+    parser, out = cfg
+    _single_synced_item(fake_zot)
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    def boom(_paths, _key):
+        raise RuntimeError("no file storage")
+
+    monkeypatch.setattr(fake_zot, "attachment_simple", boom)
+
+    def fake_run(cmd, **kwargs):
+        if cmd[1] == "geta":
+            Path(cmd[3]).write_bytes(b"%PDF annotated")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+
+    cmd_pull(parser, dry_run=False)
+
+    # re-attach failed but the item is still rendered, saved, and tagged done.
+    assert (out / "good (annotated).pdf").exists()
+    assert fake_zot.added_tags == [("G", "rm:annotated")]
+
+
+def test_pull_skips_item_without_pdf(cfg, fake_zot, monkeypatch):
+    parser, _out = cfg
+    item = make_item("G", "Synced but no PDF", tags=["rm:synced"])
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [item]}
+    fake_zot.children_map = {"G": []}  # no attachments
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    calls = []
+    monkeypatch.setattr(
+        "zotrm.remarkable.subprocess.run",
+        lambda cmd, **k: calls.append(cmd) or subprocess.CompletedProcess(cmd, 0, "", ""),
+    )
+
+    cmd_pull(parser, dry_run=False)
+    assert calls == []
+    assert fake_zot.added_tags == []
+
+
+def test_pull_without_reattach_still_tags(tmp_path, fake_zot, monkeypatch):
+    out = tmp_path / "annotated"
+    parser = configparser.ConfigParser()
+    parser.read_dict(
+        {
+            "zotero": {"library_id": "1", "api_key": "k"},
+            "remarkable": {"collection": "reMarkable", "output_dir": str(out), "reattach": "false"},
+        }
+    )
+    _single_synced_item(fake_zot)
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    def fake_run(cmd, **kwargs):
+        if cmd[1] == "geta":
+            Path(cmd[3]).write_bytes(b"%PDF annotated")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+
+    cmd_pull(parser, dry_run=False)
+
+    assert fake_zot.attachments == []  # reattach disabled -> never called
+    assert fake_zot.added_tags == [("G", "rm:annotated")]
+
+
 def test_pull_no_annotations_yet_leaves_item_untouched(cfg, fake_zot, monkeypatch):
     parser, _out = cfg
     _single_synced_item(fake_zot)
