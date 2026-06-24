@@ -1,15 +1,18 @@
 [project]
-name = "zotrm-bridge"
+name = "zotrm"
 version = "0.1.0"
 description = "Bridge a Zotero collection to a reMarkable Paper Pro: push PDFs, pull annotations."
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["zotero", "remarkable", "pdf", "annotations", "rmapi"]
-authors = [{ name = "sun" }]
+authors = [{ name = "Shubhashis Roy Dipta" }]
 dependencies = ["pyzotero>=1.5"]
 
 [project.scripts]
 zotrm = "zotrm.cli:main"
+
+[project.urls]
+Homepage = "https://roydipta.com"
 
 [build-system]
 requires = ["hatchling"]
