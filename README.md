@@ -1,5 +1,7 @@
 # zotrm
 
+[![CI](https://github.com/dipta007/zotrm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipta007/zotrm/actions/workflows/ci.yml)
+
 Read your Zotero papers on a **reMarkable Paper Pro**, then get your handwritten
 notes back into Zotero — with one command.
 
