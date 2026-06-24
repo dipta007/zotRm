@@ -1,4 +1,4 @@
-"""pull: render annotated PDF (geta), re-attach, tag done, respect --dry-run."""
+"""pull: render annotated PDF (geta --a), re-attach, tag done, respect --dry-run."""
 
 import configparser
 import subprocess
@@ -36,26 +36,32 @@ def _single_synced_item(fake_zot):
     fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
 
 
+def _geta_fake(geta_calls=None):
+    """Fake rmapi: `geta` writes '<x>-annotations.pdf' into its cwd (real behavior)."""
+
+    def fake_run(cmd, **kwargs):
+        if "geta" in cmd:
+            if geta_calls is not None:
+                geta_calls.append(list(cmd))
+            (Path(kwargs["cwd"]) / "doc-annotations.pdf").write_bytes(b"%PDF annotated")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    return fake_run
+
+
 def test_pull_renders_reattaches_and_tags(cfg, fake_zot, monkeypatch):
     parser, out = cfg
     _single_synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
 
     geta_calls = []
-
-    def fake_run(cmd, **kwargs):
-        if cmd[1] == "geta":
-            geta_calls.append(list(cmd))
-            Path(cmd[3]).write_bytes(b"%PDF annotated")  # geta renders the file
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake(geta_calls))
 
     cmd_pull(parser, dry_run=False)
 
     dest = out / "good (annotated).pdf"
     assert dest.exists()
-    assert geta_calls[0][2] == "/Papers/good"  # remote = folder/stem
+    assert geta_calls[0] == ["rmapi", "geta", "--a", "/Papers/good"]  # --a + remote
     assert fake_zot.attachments == [([str(dest)], "G")]
     assert fake_zot.added_tags == [("G", "rm:annotated")]
 
@@ -117,13 +123,7 @@ def test_pull_reattach_error_still_tags_done(cfg, fake_zot, monkeypatch):
         raise RuntimeError("no file storage")
 
     monkeypatch.setattr(fake_zot, "attachment_simple", boom)
-
-    def fake_run(cmd, **kwargs):
-        if cmd[1] == "geta":
-            Path(cmd[3]).write_bytes(b"%PDF annotated")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake())
 
     cmd_pull(parser, dry_run=False)
 
@@ -162,13 +162,7 @@ def test_pull_without_reattach_still_tags(tmp_path, fake_zot, monkeypatch):
     )
     _single_synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
-
-    def fake_run(cmd, **kwargs):
-        if cmd[1] == "geta":
-            Path(cmd[3]).write_bytes(b"%PDF annotated")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
-
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake())
 
     cmd_pull(parser, dry_run=False)
 
@@ -176,13 +170,31 @@ def test_pull_without_reattach_still_tags(tmp_path, fake_zot, monkeypatch):
     assert fake_zot.added_tags == [("G", "rm:annotated")]
 
 
-def test_pull_no_annotations_yet_leaves_item_untouched(cfg, fake_zot, monkeypatch):
+def test_pull_geta_failure_leaves_item_untouched(cfg, fake_zot, monkeypatch):
     parser, _out = cfg
     _single_synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
 
+    # geta exits non-zero (e.g. document not found)
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="not found")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+
+    cmd_pull(parser, dry_run=False)
+
+    assert fake_zot.added_tags == []
+    assert fake_zot.attachments == []
+
+
+def test_pull_no_annotations_file_leaves_item_untouched(cfg, fake_zot, monkeypatch):
+    parser, _out = cfg
+    _single_synced_item(fake_zot)
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    # geta exits 0 but produces no '*-annotations.pdf' (nothing to render)
+    def fake_run(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
 

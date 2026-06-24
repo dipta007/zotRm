@@ -14,14 +14,17 @@ from zotrm.config import die
 _MADE_FOLDERS: set[str] = set()
 
 
-def rmapi(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
-    """Run an rmapi sub-command non-interactively."""
+def rmapi(
+    *args: str, capture: bool = False, cwd: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run an rmapi sub-command non-interactively (optionally in ``cwd``)."""
     try:
         return subprocess.run(
             ["rmapi", *args],
             check=False,
             text=True,
             capture_output=capture,
+            cwd=cwd,
         )
     except FileNotFoundError:
         die("rmapi not found on PATH. Install the ddvk fork: brew install rmapi")

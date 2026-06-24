@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-24
+
+### Fixed
+
+- `pull` now works with current `rmapi` (ddvk v0.0.34+). It runs `geta --a` in a temp
+  directory and collects the `<name>-annotations.pdf` that rmapi writes there, instead of
+  passing an output path that newer rmapi silently ignores. Previously every pull reported
+  "no annotations yet / failed" even when annotations existed.
+
 ## [0.1.0] - 2026-06-23
 
 ### Added
@@ -21,5 +30,6 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/dipta007/zotRm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dipta007/zotRm/releases/tag/v0.1.0

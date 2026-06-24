@@ -7,6 +7,7 @@ flags mirror the original single-file tool exactly.
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 import tempfile
 from configparser import ConfigParser
@@ -118,11 +119,16 @@ def cmd_pull(cfg: ConfigParser, dry_run: bool) -> None:
             pulled += 1
             continue
 
-        # geta = "get annotated": render scribbles onto the original PDF.
-        res = rmapi("geta", remote, str(dest), capture=True)
-        if res.returncode != 0 or not dest.exists():
-            log(f"  no annotations yet / failed   {title}")
-            continue
+        # geta = "get annotated": render scribbles onto the original PDF. rmapi
+        # writes "<name>-annotations.pdf" into its working dir and ignores any
+        # output path, so run it in a temp dir and collect the result.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            res = rmapi("geta", "--a", remote, capture=True, cwd=tmpdir)
+            produced = next(Path(tmpdir).glob("*-annotations.pdf"), None)
+            if res.returncode != 0 or produced is None:
+                log(f"  no annotations yet / failed   {title}")
+                continue
+            shutil.move(str(produced), str(dest))
 
         if reattach:
             try:

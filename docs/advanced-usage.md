@@ -113,6 +113,12 @@ python -m zotrm status
   cloud, and two-way document sync requires a reMarkable Connect subscription. Also
   remember annotations only return as a flattened PDF, never as editable Zotero
   highlights.
+- **"no annotations yet / failed"** — that paper has no annotations on the tablet yet, so
+  there's nothing to render. It stays in "reading" and will be picked up once you annotate
+  and sync it.
+- **`File would exceed quota` on pull** — your Zotero cloud storage is full (the free tier
+  is 300 MB). `zotrm` still saves the annotated PDF locally in your `output_dir`; free up
+  or upgrade Zotero storage to re-attach it to the item.
 
 ## Recording the demo GIF
 
