@@ -20,3 +20,9 @@ build/
 .coverage
 htmlcov/
 coverage.xml
+
+# Stray reMarkable downloads (rmapi get / geta output)
+/*.zip
+/*-annotations.pdf
+*.rmdoc
+*.rmn
