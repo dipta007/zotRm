@@ -1,7 +1,8 @@
 """Command-line interface: argument parsing and command dispatch.
 
-Subcommands (push / pull / status / sync) and the global --config / --dry-run
-flags mirror the original single-file tool exactly.
+The workflow is a single ``sync`` command: it pushes the original PDF the first
+time it sees a paper, and on later runs refreshes one annotated copy from the
+tablet (the original is never touched again). ``status`` shows the state.
 """
 
 from __future__ import annotations
@@ -12,9 +13,18 @@ import sys
 import tempfile
 from configparser import ConfigParser
 from pathlib import Path
+from typing import Any
 
-from zotrm.config import DEFAULT_CONFIG, TAG_DONE, TAG_SYNCED, load_config, log
+from zotrm.config import (
+    ANNOTATED_SUFFIX,
+    DEFAULT_CONFIG,
+    TAG_DONE,
+    TAG_SYNCED,
+    load_config,
+    log,
+)
 from zotrm.remarkable import ensure_remote_folder, rmapi
+from zotrm.storage import reattach
 from zotrm.zotero import (
     connect,
     find_collection_key,
@@ -34,19 +44,33 @@ def _interactive() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
-def cmd_push(cfg: ConfigParser, dry_run: bool) -> None:
+def _source_pdf(
+    cfg: ConfigParser, zot: Any, att_key: str, filename: str
+) -> tuple[str, Path | None]:
+    """Return (path, temp_to_clean): the local PDF, or a temp download from the API."""
+    local = local_pdf_path(cfg, att_key, filename)
+    if local:
+        return str(local), None
+    tmp = Path(tempfile.gettempdir()) / filename
+    tmp.write_bytes(zot.file(att_key))
+    return str(tmp), tmp
+
+
+def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
     zot = connect(cfg)
     rm = cfg["remarkable"]
     base = rm.get("folder", "/Papers")
     mirror = _truthy(rm.get("mirror_subcollections", "true"))
+    out_dir = Path(rm.get("output_dir", str(Path.home() / "zotrm-annotated")))
+    out_dir.mkdir(parents=True, exist_ok=True)
     coll_key = find_collection_key(zot, rm["collection"])
 
     pushed = 0
+    refreshed = 0
     for item, folder in iter_items(zot, coll_key, base, mirror):
         key = item["key"]
         title = item["data"].get("title", key)[:70]
-        if TAG_SYNCED in tags_of(item):
-            continue
+        tags = tags_of(item)
 
         child = pdf_child(zot, key)
         if not child:
@@ -54,93 +78,54 @@ def cmd_push(cfg: ConfigParser, dry_run: bool) -> None:
             continue
         att_key, filename = child
 
-        if dry_run:
-            log(f"  would push      {title}  ->  {folder}/{filename}")
-            pushed += 1
-            continue
-
-        ensure_remote_folder(folder)
-
-        # Prefer the locally-synced PDF; fall back to the Zotero API.
-        local = local_pdf_path(cfg, att_key, filename)
-        tmp = None
-        if local:
-            src = str(local)
-        else:
-            tmp = Path(tempfile.gettempdir()) / filename
-            tmp.write_bytes(zot.file(att_key))
-            src = str(tmp)
-
-        res = rmapi("put", src, folder, capture=True)
-        if res.returncode != 0:
-            log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
-        else:
+        if TAG_SYNCED not in tags:
+            # First time: push the original PDF to the tablet.
+            if dry_run:
+                log(f"  would push      {title}  ->  {folder}/{filename}")
+                pushed += 1
+                continue
+            ensure_remote_folder(folder)
+            src, tmp = _source_pdf(cfg, zot, att_key, filename)
+            res = rmapi("put", src, folder, capture=True)
+            if tmp:
+                tmp.unlink(missing_ok=True)
+            if res.returncode != 0:
+                log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
+                continue
             zot.add_tags(item, TAG_SYNCED)
             log(f"  pushed          {title}  ->  {folder}")
             pushed += 1
-        if tmp:
-            tmp.unlink(missing_ok=True)
-
-    log(
-        f"\npush complete: {pushed} paper(s) "
-        f"{'would be ' if dry_run else ''}sent to the reMarkable."
-    )
-
-
-def cmd_pull(cfg: ConfigParser, dry_run: bool) -> None:
-    zot = connect(cfg)
-    rm = cfg["remarkable"]
-    base = rm.get("folder", "/Papers")
-    mirror = _truthy(rm.get("mirror_subcollections", "true"))
-    out_dir = Path(rm.get("output_dir", str(Path.home() / "zotrm-annotated")))
-    reattach = _truthy(rm.get("reattach", "true"))
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    coll_key = find_collection_key(zot, rm["collection"])
-
-    pulled = 0
-    for item, folder in iter_items(zot, coll_key, base, mirror):
-        key = item["key"]
-        title = item["data"].get("title", key)[:70]
-        item_tags = tags_of(item)
-        if TAG_SYNCED not in item_tags or TAG_DONE in item_tags:
             continue
 
-        child = pdf_child(zot, key)
-        if not child:
-            continue
-        _, filename = child
+        # Already on the tablet: refresh the single annotated copy.
         stem = Path(filename).stem
         remote = f"{folder.rstrip('/')}/{stem}"
-        dest = out_dir / f"{stem} (annotated).pdf"
-
+        dest = out_dir / f"{stem}{ANNOTATED_SUFFIX}.pdf"
         if dry_run:
-            log(f"  would pull      {title}  ->  {dest}")
-            pulled += 1
+            log(f"  would refresh   {title}  ->  {dest}")
+            refreshed += 1
             continue
 
-        # geta = "get annotated": render scribbles onto the original PDF. rmapi
-        # writes "<name>-annotations.pdf" into its working dir and ignores any
-        # output path, so run it in a temp dir and collect the result.
+        # geta writes "<name>-annotations.pdf" into its working dir and ignores
+        # any output path, so run it in a temp dir and collect the result.
         with tempfile.TemporaryDirectory() as tmpdir:
             res = rmapi("geta", "--a", remote, capture=True, cwd=tmpdir)
             produced = next(Path(tmpdir).glob("*-annotations.pdf"), None)
             if res.returncode != 0 or produced is None:
-                log(f"  no annotations yet / failed   {title}")
+                log(f"  no annotations yet   {title}")
                 continue
             shutil.move(str(produced), str(dest))
 
-        if reattach:
-            try:
-                zot.attachment_simple([str(dest)], key)
-            except Exception as e:
-                log(f"    (re-attach skipped: {e}; file saved to {dest})")
+        if reattach(zot, cfg, key, dest):
+            if TAG_DONE not in tags:
+                zot.add_tags(item, TAG_DONE)
+            log(f"  refreshed       {title}  ->  {dest}")
+        else:
+            log(f"  saved locally   {title}  ->  {dest}")
+        refreshed += 1
 
-        zot.add_tags(item, TAG_DONE)
-        log(f"  pulled          {title}  ->  {dest}")
-        pulled += 1
-
-    log(f"\npull complete: {pulled} annotated paper(s) {'would be ' if dry_run else ''}retrieved.")
+    suffix = " (dry run)" if dry_run else ""
+    log(f"\nsync complete{suffix}: {pushed} pushed, {refreshed} refreshed.")
 
 
 def cmd_status(cfg: ConfigParser, dry_run: bool) -> None:
@@ -188,10 +173,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     p.add_argument("--dry-run", action="store_true", help="show what would happen, change nothing")
     sub = p.add_subparsers(dest="command", required=True)
-    sub.add_parser("push", help="send queued papers to the reMarkable")
-    sub.add_parser("pull", help="bring annotated papers back into Zotero")
-    sub.add_parser("status", help="show the queue / on-device / done lists")
-    sub.add_parser("sync", help="pull then push, in one go")
+    sub.add_parser("sync", help="push new papers and refresh annotations (the whole workflow)")
+    sub.add_parser("status", help="show the queue / on-device / annotated lists")
     config_p = sub.add_parser("config", help="create or edit your configuration")
     config_p.add_argument(
         "--show", action="store_true", help="print the current config location and values"
@@ -223,8 +206,8 @@ def main(argv: list[str] | None = None) -> None:
             run_cron_setup(args.config)
         return
 
-    # push / pull / status / sync all need a config. On first run, if we have a
-    # terminal, launch the wizard; otherwise fall through to a clean error.
+    # sync / status need a config. On first run, if we have a terminal, launch
+    # the wizard; otherwise fall through to a clean error.
     if not args.config.exists() and _interactive():
         log("No config found yet — let's set it up first.\n")
         from zotrm.wizard import run_config_wizard
@@ -235,15 +218,10 @@ def main(argv: list[str] | None = None) -> None:
 
     cfg = load_config(args.config)
 
-    if args.command == "push":
-        cmd_push(cfg, args.dry_run)
-    elif args.command == "pull":
-        cmd_pull(cfg, args.dry_run)
-    elif args.command == "status":
+    if args.command == "status":
         cmd_status(cfg, args.dry_run)
-    else:  # sync = pull then push
-        cmd_pull(cfg, args.dry_run)
-        cmd_push(cfg, args.dry_run)
+    else:  # sync
+        cmd_sync(cfg, args.dry_run)
 
 
 if __name__ == "__main__":

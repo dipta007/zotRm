@@ -25,6 +25,12 @@ api_key      = your-zotero-api-key
 library_type = user
 # Optional: point at your local Zotero storage to avoid re-downloading PDFs.
 storage_dir  = /Users/you/Zotero/storage
+# Where the annotated copy is stored: zotero | webdav | none
+file_mode    = webdav
+# Only for file_mode = webdav (zotrm stores files under {webdav_url}/zotero/):
+webdav_url   = https://cloud.example.com/remote.php/dav/files/you
+webdav_user  = you
+webdav_pass  = app-specific-password
 
 [remarkable]
 # The Zotero collection whose items get pushed to the tablet.
@@ -33,10 +39,8 @@ collection            = reMarkable
 folder                = /Papers
 # Recreate Zotero sub-collections as nested folders on the tablet?
 mirror_subcollections = true
-# Where annotated PDFs are written locally when pulled back.
+# Where annotated PDFs are written locally.
 output_dir            = /Users/you/Zotero/annotated
-# Re-attach the annotated PDF to the Zotero item? (needs Zotero file storage)
-reattach              = true
 ```
 
 ### Settings reference
@@ -46,14 +50,17 @@ reattach              = true
 | `zotero`      | `library_id`            | _(required)_            | Your Zotero userID (or group ID).                              |
 | `zotero`      | `api_key`               | _(required)_            | A private key with read **and write** access.                  |
 | `zotero`      | `library_type`          | `user`                  | `user` or `group`.                                             |
-| `zotero`      | `storage_dir`           | _(none)_                | Local Zotero storage; lets push skip re-downloading PDFs.      |
+| `zotero`      | `storage_dir`           | _(none)_                | Local Zotero storage; lets sync skip re-downloading PDFs.      |
+| `zotero`      | `file_mode`             | `zotero`                | Where the annotated copy goes: `zotero`, `webdav`, or `none`.  |
+| `zotero`      | `webdav_url`            | _(none)_                | WebDAV base URL; zotrm stores files under `{webdav_url}/zotero/`. |
+| `zotero`      | `webdav_user` / `webdav_pass` | _(none)_          | WebDAV credentials (use an app-specific password).             |
 | `remarkable`  | `collection`            | _(required)_            | Name of the Zotero collection to sync.                         |
 | `remarkable`  | `folder`                | `/Papers`               | Destination folder on the tablet.                              |
 | `remarkable`  | `mirror_subcollections` | `true`                  | Recreate sub-collections as nested folders (vs. flat).         |
-| `remarkable`  | `output_dir`            | `~/zotrm-annotated`     | Where pulled annotated PDFs are written.                       |
-| `remarkable`  | `reattach`              | `true`                  | Re-attach the annotated PDF to the Zotero item.                |
+| `remarkable`  | `output_dir`            | `~/zotrm-annotated`     | Where annotated PDFs are written locally.                      |
 
-Booleans accept `true`/`false`, `1`/`0`, or `yes`/`no`.
+Booleans accept `true`/`false`, `1`/`0`, or `yes`/`no`. The legacy `reattach = false`
+still works and maps to `file_mode = none`.
 
 `zotrm config --show` prints the current location and values (the API key is masked).
 

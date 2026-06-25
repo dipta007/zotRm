@@ -13,8 +13,13 @@ from pathlib import Path
 from typing import NoReturn
 
 # Tags used to track per-item state, entirely inside Zotero.
-TAG_SYNCED = "rm:synced"  # pushed to the device
-TAG_DONE = "rm:annotated"  # annotated copy pulled back
+TAG_SYNCED = "rm:synced"  # original pushed to the device
+TAG_DONE = "rm:annotated"  # an annotated copy has been pulled back
+
+# Suffix on the single annotated copy zotrm maintains in Zotero, e.g.
+# "Paper (annotated).pdf". Used both when creating it and when telling it apart
+# from the original on later syncs.
+ANNOTATED_SUFFIX = " (annotated)"
 
 DEFAULT_CONFIG = Path.home() / ".config" / "zotrm" / "config.ini"
 

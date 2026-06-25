@@ -16,6 +16,8 @@ class FakeZotero:
         self.files = {}  # attachment key -> bytes
         self.added_tags = []  # (item key, tag)
         self.attachments = []  # (paths, parent key)
+        self.deleted = []  # deleted item dicts
+        self.created = []  # created item templates
         self.item_count = 0  # value returned by num_items()
 
     def everything(self, result):
@@ -23,6 +25,16 @@ class FakeZotero:
 
     def num_items(self):
         return self.item_count
+
+    def delete_item(self, item):
+        self.deleted.append(item)
+
+    def item_template(self, item_type, link_mode=None):
+        return {}
+
+    def create_items(self, items):
+        self.created.extend(items)
+        return {"success": {"0": "NEWKEY"}}
 
     def collections(self):
         return self.collections_list

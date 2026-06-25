@@ -5,7 +5,13 @@ import configparser
 import pytest
 from conftest import FakeZotero, make_collection, make_pdf_child
 
-from zotrm.zotero import connect, find_collection_key, local_pdf_path, pdf_child
+from zotrm.zotero import (
+    annotated_child,
+    connect,
+    find_collection_key,
+    local_pdf_path,
+    pdf_child,
+)
 
 
 def _cfg(**zotero):
@@ -36,6 +42,30 @@ def test_pdf_child_skips_non_pdf_then_finds_pdf():
 
     zot.children_map = {"I": [note]}  # no PDF at all
     assert pdf_child(zot, "I") is None
+
+
+def test_pdf_child_skips_annotated_copy():
+    zot = FakeZotero()
+    # the annotated copy is listed first; pdf_child must return the original
+    zot.children_map = {
+        "I": [
+            make_pdf_child("attA", "paper (annotated).pdf"),
+            make_pdf_child("attP", "paper.pdf"),
+        ]
+    }
+    assert pdf_child(zot, "I") == ("attP", "paper.pdf")
+
+    # only an annotated copy -> no original
+    zot.children_map = {"I": [make_pdf_child("attA", "paper (annotated).pdf")]}
+    assert pdf_child(zot, "I") is None
+
+
+def test_annotated_child_finds_and_misses():
+    zot = FakeZotero()
+    annotated = make_pdf_child("attA", "paper (annotated).pdf")
+    zot.children_map = {"I": [make_pdf_child("attP", "paper.pdf"), annotated]}
+    assert annotated_child(zot, "I", "paper (annotated).pdf") is annotated
+    assert annotated_child(zot, "I", "missing.pdf") is None
 
 
 def test_local_pdf_path_present_absent_and_unset(tmp_path):

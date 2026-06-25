@@ -16,13 +16,14 @@ notes back into Zotero — with one command.
 
 **What it does, in plain words:**
 
-- **push** — sends the PDFs from one Zotero collection to your reMarkable tablet.
-- **pull** — brings the marked-up PDFs back and attaches them to the same Zotero papers.
-- **status** — shows which papers are waiting, on the tablet, or already done.
-- **sync** — does a pull and then a push, together.
+- **`zotrm sync`** — the whole workflow in one command. The first time it sees a paper it
+  sends the PDF from your Zotero collection to the tablet. After that, each run brings your
+  annotations back into Zotero as a single, always-current `… (annotated).pdf` — your
+  original is never touched, and nothing is duplicated.
+- **`zotrm status`** — shows which papers are waiting, on the tablet, or annotated.
 
-You never push or pull the same paper twice by mistake — the tool remembers what it has
-done. It is safe to run again and again.
+It remembers what it has done (using Zotero tags), so it's safe to run again and again —
+great for a cron schedule.
 
 > **One honest limit (this is reMarkable's behavior, not a bug here):**
 > Your highlights and handwriting come back as part of the PDF image — "painted onto"
@@ -137,7 +138,7 @@ put:
 | **reMarkable folder** | Where papers land on the tablet, e.g. `/Papers` (created if missing). |
 | **Mirror sub-collections?** | `Yes` recreates your Zotero sub-collections as nested folders on the tablet; `No` puts everything in one folder. |
 | **Where to save annotated PDFs** | A folder on your computer for the marked-up copies, e.g. `~/Zotero/annotated`. |
-| **Re-attach annotated PDF?** | `Yes` adds the annotated copy back onto the paper in Zotero. |
+| **Where to store the annotated copy** | `zotero` = Zotero's own storage (uses your Zotero quota); `webdav` = your own WebDAV server (it then asks for the URL + login); `none` = keep it only as a local file, don't put it back in Zotero. |
 
 When you finish, it checks your details (you'll see `✓ Zotero connection OK`), warns if
 `rmapi` is missing, and saves everything to `~/.config/zotrm/config.ini`.
@@ -148,19 +149,16 @@ When you finish, it checks your details (you'll see `✓ Zotero connection OK`),
 
 ### Step 5 — Use it
 
-Send your papers to the tablet:
+One command does everything:
 
 ```sh
-zotrm push
+zotrm sync
 ```
 
-Read and annotate them on the reMarkable. When you're done, bring them back:
-
-```sh
-zotrm pull
-```
-
-That's the whole loop. 🎉
+The **first** time, it sends your papers to the tablet. Read and annotate them on the
+reMarkable, then run `zotrm sync` **again** — it pulls your annotations back into Zotero as a
+single, always-up-to-date `… (annotated).pdf`. Your original PDF is never touched, and
+re-running just refreshes that one annotated copy (no duplicates). That's the whole loop. 🎉
 
 ### Step 6 (optional) — Make it automatic
 
@@ -178,19 +176,17 @@ later with `zotrm cron --remove`.
 ## Everyday commands
 
 ```sh
-zotrm push      # send waiting papers to the tablet
-zotrm pull      # bring marked-up papers back into Zotero
-zotrm status    # see what is waiting / on the tablet / done
-zotrm sync      # pull, then push, in one step
+zotrm sync      # the whole workflow: push new papers, refresh annotations
+zotrm status    # see what is waiting / on the tablet / annotated
 
 zotrm config    # change your settings any time
-zotrm cron      # set up (or change) automatic syncing
+zotrm cron      # run sync automatically on a schedule
 ```
 
 Not sure what a command will do? Add `--dry-run` to see without changing anything:
 
 ```sh
-zotrm --dry-run push
+zotrm --dry-run sync
 ```
 
 ---
@@ -202,8 +198,10 @@ zotrm --dry-run push
 - **"no Zotero collection named ..."** → The collection name in your settings doesn't
   exactly match a collection in Zotero. Check spelling and capital letters
   (`zotrm config --show` prints your current settings).
-- **Pull finds nothing** → Make sure the tablet is online and finished syncing, and that
-  you have a reMarkable Connect subscription.
+- **Sync brings nothing back** → Make sure the tablet is online and finished syncing, that
+  you've actually annotated the paper, and that you have a reMarkable Connect subscription.
+- **`File would exceed quota`** → Your Zotero storage is full. Switch the annotated copy to
+  WebDAV or `none`: run `zotrm config` and change "Where to store the annotated copy."
 
 Run any command with `--dry-run` first if you're unsure — it changes nothing.
 
@@ -221,8 +219,13 @@ reMarkable limitation, not something `zotrm` can change. You get a faithful anno
 re-attached to the item, just not editable highlight objects.
 
 **Does it duplicate files if I run it again?**
-No. It tags items `rm:synced` once pushed and `rm:annotated` once pulled back, and skips
-anything already done. Re-run it (or schedule it) freely.
+No. It keeps exactly **one** `… (annotated).pdf` per paper and overwrites it on each sync,
+and it never re-uploads your original. Re-run `zotrm sync` (or schedule it) freely.
+
+**Where does the annotated copy get stored?**
+Your choice, set during `zotrm config`: `zotero` (Zotero's own storage, uses your quota),
+`webdav` (your own WebDAV server — same files/login Zotero uses), or `none` (keep it only
+as a local file). A local copy is always saved to your `output_dir` regardless.
 
 **Can I use it with more than one Zotero library?**
 Yes — keep separate config files and pass `--config`. See

@@ -17,15 +17,12 @@ def _write_config(tmp_path):
 def test_main_dispatches_core_commands(tmp_path, monkeypatch):
     path = _write_config(tmp_path)
     calls = []
-    monkeypatch.setattr(cli, "cmd_push", lambda cfg, dry: calls.append("push"))
-    monkeypatch.setattr(cli, "cmd_pull", lambda cfg, dry: calls.append("pull"))
+    monkeypatch.setattr(cli, "cmd_sync", lambda cfg, dry: calls.append("sync"))
     monkeypatch.setattr(cli, "cmd_status", lambda cfg, dry: calls.append("status"))
 
-    cli.main(["--config", str(path), "push"])
-    cli.main(["--config", str(path), "pull"])
+    cli.main(["--config", str(path), "sync"])
     cli.main(["--config", str(path), "status"])
-    cli.main(["--config", str(path), "sync"])  # sync = pull then push
-    assert calls == ["push", "pull", "status", "pull", "push"]
+    assert calls == ["sync", "status"]
 
 
 def test_main_config_subcommand(tmp_path, monkeypatch):

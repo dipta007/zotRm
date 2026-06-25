@@ -101,6 +101,13 @@ def _render(values: dict[str, dict[str, str]]) -> str:
     if z.get("storage_dir"):
         lines.append("# Local Zotero storage, to avoid re-downloading PDFs.")
         lines.append(f"storage_dir  = {z['storage_dir']}")
+    lines.append("# Where the annotated copy is stored: zotero | webdav | none")
+    lines.append(f"file_mode    = {z.get('file_mode', 'zotero')}")
+    if z.get("file_mode") == "webdav":
+        lines.append("# WebDAV base URL (zotrm stores files under {webdav_url}/zotero/).")
+        lines.append(f"webdav_url   = {z.get('webdav_url', '')}")
+        lines.append(f"webdav_user  = {z.get('webdav_user', '')}")
+        lines.append(f"webdav_pass  = {z.get('webdav_pass', '')}")
     lines += [
         "",
         "[remarkable]",
@@ -112,8 +119,6 @@ def _render(values: dict[str, dict[str, str]]) -> str:
         f"mirror_subcollections = {r['mirror_subcollections']}",
         "# Where annotated PDFs are written locally when pulled back.",
         f"output_dir            = {r['output_dir']}",
-        "# Re-attach the annotated PDF to the Zotero item?",
-        f"reattach              = {r['reattach']}",
         "",
     ]
     return "\n".join(lines)
@@ -152,14 +157,21 @@ def run_config_wizard(path: Path) -> bool:
             "output_dir": _path(
                 "Where to save annotated PDFs", prior.get("output_dir", home_annotated)
             ),
-            "reattach": str(
-                _confirm(
-                    "Re-attach the annotated PDF to the Zotero item?",
-                    _as_bool(prior.get("reattach"), True),
-                )
-            ).lower(),
         },
     }
+
+    mode = _select(
+        "Where should the annotated copy be stored in Zotero?",
+        ["zotero", "webdav", "none"],
+        prior.get("file_mode", "zotero"),
+    )
+    values["zotero"]["file_mode"] = mode
+    if mode == "webdav":
+        values["zotero"]["webdav_url"] = _text(
+            "WebDAV base URL (zotrm adds /zotero/)", prior.get("webdav_url", ""), required=True
+        )
+        values["zotero"]["webdav_user"] = _text("WebDAV username", prior.get("webdav_user", ""))
+        values["zotero"]["webdav_pass"] = _password("WebDAV password", prior.get("webdav_pass", ""))
 
     log("")
     ok, message = _verify_zotero(_to_configparser(values))
@@ -190,5 +202,5 @@ def show_config(path: Path) -> None:
     for section in cfg.sections():
         log(f"[{section}]")
         for key, value in cfg[section].items():
-            shown = "********" if key == "api_key" and value else value
+            shown = "********" if key in ("api_key", "webdav_pass") and value else value
             log(f"  {key} = {shown}")

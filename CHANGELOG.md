@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Collapsed the workflow into a single `zotrm sync` command (removed `push` and `pull`).
+  The first sync pushes the original PDF; later syncs refresh **one** always-current
+  `… (annotated).pdf` in Zotero — the original is never touched and nothing is duplicated.
+
+### Added
+
+- `file_mode` setting (`zotero` | `webdav` | `none`) selecting where the annotated copy is
+  stored, including a **WebDAV backend** that uploads `<KEY>.zip` + `<KEY>.prop` to
+  `{webdav_url}/zotero/`. The wizard collects WebDAV URL + credentials.
+
+### Fixed
+
+- Re-attach failures no longer leave an orphaned attachment or wrongly mark a paper done,
+  and the annotated copy keeps a clean basename filename.
+
 ## [0.1.1] - 2026-06-24
 
 ### Fixed

@@ -11,7 +11,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from typing import Any
 
-from zotrm.config import die
+from zotrm.config import ANNOTATED_SUFFIX, die
 
 
 def connect(cfg: ConfigParser) -> Any:
@@ -34,12 +34,35 @@ def find_collection_key(zot: Any, name: str) -> str:
     die(f"no Zotero collection named {name!r} found")
 
 
+def _is_annotated(filename: str) -> bool:
+    return filename.endswith(f"{ANNOTATED_SUFFIX}.pdf")
+
+
 def pdf_child(zot: Any, item_key: str) -> tuple[str, str] | None:
-    """Return (attachment_key, filename) of the first PDF attachment, or None."""
+    """Return (attachment_key, filename) of the first *original* PDF attachment.
+
+    Skips the annotated copy zotrm maintains, so push always sends the original.
+    """
     for child in zot.children(item_key):
         data = child["data"]
-        if data.get("contentType") == "application/pdf" and data.get("filename"):
-            return str(child["key"]), str(data["filename"])
+        filename = data.get("filename")
+        if (
+            data.get("contentType") == "application/pdf"
+            and filename
+            and not _is_annotated(filename)
+        ):
+            return str(child["key"]), str(filename)
+    return None
+
+
+def annotated_child(zot: Any, item_key: str, filename: str) -> Any | None:
+    """Return the existing attachment item whose filename is ``filename``, or None.
+
+    Used to replace (not duplicate) the single annotated copy on re-sync.
+    """
+    for child in zot.children(item_key):
+        if child["data"].get("filename") == filename:
+            return child
     return None
 
 
