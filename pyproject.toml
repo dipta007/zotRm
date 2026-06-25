@@ -23,8 +23,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "pypdf>=4.0",
     "pyzotero>=1.5",
     "questionary>=2.0",
+    "rmscene>=0.5",
 ]
 
 [project.scripts]

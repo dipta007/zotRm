@@ -50,15 +50,28 @@ def _store_pdf(storage, att_key, filename):
     (folder / filename).write_bytes(b"%PDF-1.4 local")
 
 
-def _geta_fake(geta_calls=None):
+def _get_fake(get_calls=None):
+    """Fake rmapi: `get` downloads a raw bundle (a dummy .rmdoc) into its cwd."""
+
     def fake_run(cmd, **kwargs):
-        if "geta" in cmd:
-            if geta_calls is not None:
-                geta_calls.append(list(cmd))
-            (Path(kwargs["cwd"]) / "doc-annotations.pdf").write_bytes(b"%PDF annotated")
+        if cmd[1] == "get":
+            if get_calls is not None:
+                get_calls.append(list(cmd))
+            (Path(kwargs["cwd"]) / "doc.rmdoc").write_bytes(b"PK\x03\x04")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     return fake_run
+
+
+def _fake_render(returns=True):
+    """Stand-in for render_annotations: writes the dest and reports success."""
+
+    def render(bundle, original, dest):
+        if returns:
+            dest.write_bytes(b"%PDF rendered")
+        return returns
+
+    return render
 
 
 # ---- first run: push the original -------------------------------------------------
@@ -170,23 +183,25 @@ def _synced_item(fake_zot):
     fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
 
 
-def test_sync_refresh_calls_reattach_and_tags(cfg, fake_zot, monkeypatch):
-    parser, _storage, out = cfg
+def test_sync_refresh_renders_reattaches_and_tags(cfg, fake_zot, monkeypatch):
+    parser, storage, out = cfg
     _synced_item(fake_zot)
+    _store_pdf(storage, "attG", "good.pdf")  # original on disk -> no temp download
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
 
     calls = []
     monkeypatch.setattr(
         "zotrm.cli.reattach", lambda zot, c, key, dest: calls.append((key, dest)) or True
     )
-    geta_calls = []
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake(geta_calls))
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(True))
+    get_calls = []
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake(get_calls))
 
     cmd_sync(parser, dry_run=False)
 
     dest = out / "good (annotated).pdf"
     assert dest.exists()
-    assert geta_calls[0] == ["rmapi", "geta", "--a", "/Papers/good"]
+    assert get_calls[0] == ["rmapi", "get", "/Papers/good"]  # raw bundle download
     assert calls == [("G", dest)]
     assert fake_zot.added_tags == [("G", "rm:annotated")]
 
@@ -196,7 +211,8 @@ def test_sync_refresh_reattach_failure_saves_local_not_tagged(cfg, fake_zot, mon
     _synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
     monkeypatch.setattr("zotrm.cli.reattach", lambda *a: False)
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake())
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(True))
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake())
 
     cmd_sync(parser, dry_run=False)
 
@@ -209,12 +225,38 @@ def test_sync_refresh_no_annotations(cfg, fake_zot, monkeypatch):
     _synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
     monkeypatch.setattr("zotrm.cli.reattach", lambda *a: pytest.fail("should not attach"))
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(False))  # nothing to draw
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake())
 
-    def geta_fails(cmd, **kwargs):
-        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="no annotations")
+    cmd_sync(parser, dry_run=False)
+    assert fake_zot.added_tags == []
 
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", geta_fails)
 
+def test_sync_refresh_download_fails(cfg, fake_zot, monkeypatch):
+    parser, _storage, _out = cfg
+    _synced_item(fake_zot)
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+    monkeypatch.setattr("zotrm.cli.render_annotations", lambda *a: pytest.fail("no render"))
+
+    def get_fails(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="not found")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", get_fails)
+    cmd_sync(parser, dry_run=False)
+    assert fake_zot.added_tags == []
+
+
+def test_sync_refresh_no_bundle_produced(cfg, fake_zot, monkeypatch):
+    parser, _storage, _out = cfg
+    _synced_item(fake_zot)
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+    monkeypatch.setattr("zotrm.cli.render_annotations", lambda *a: pytest.fail("no render"))
+
+    # rmapi get exits 0 but writes no .rmdoc/.zip
+    def get_empty(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", get_empty)
     cmd_sync(parser, dry_run=False)
     assert fake_zot.added_tags == []
 
@@ -239,7 +281,8 @@ def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch):
     fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
     monkeypatch.setattr("zotrm.cli.reattach", lambda *a: True)
-    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _geta_fake())
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(True))
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake())
 
     cmd_sync(parser, dry_run=False)
 

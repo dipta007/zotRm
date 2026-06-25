@@ -14,6 +14,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **reMarkable Paper Pro (v6) annotation support.** `rmapi`'s renderer can't read the
+  Paper Pro's v6 `.rm` format, so `sync` now downloads the raw bundle (`rmapi get`) and
+  rebuilds annotations itself (`rmscene` + `pypdf`): text highlights become editable PDF
+  `/Highlight` annotations (Zotero imports them as native highlights, carrying the text),
+  and pen strokes become `/Ink` with an appearance stream. New deps: `rmscene`, `pypdf`.
 - `file_mode` setting (`zotero` | `webdav` | `none`) selecting where the annotated copy is
   stored, including a **WebDAV backend** that uploads `<KEY>.zip` + `<KEY>.prop` to
   `{webdav_url}/zotero/`. The wizard collects WebDAV URL + credentials.

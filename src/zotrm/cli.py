@@ -8,7 +8,6 @@ tablet (the original is never touched again). ``status`` shows the state.
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 import tempfile
 from configparser import ConfigParser
@@ -24,6 +23,7 @@ from zotrm.config import (
     log,
 )
 from zotrm.remarkable import ensure_remote_folder, rmapi
+from zotrm.render import render_annotations
 from zotrm.storage import reattach
 from zotrm.zotero import (
     connect,
@@ -97,7 +97,9 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pushed += 1
             continue
 
-        # Already on the tablet: refresh the single annotated copy.
+        # Already on the tablet: download the raw bundle and rebuild the
+        # annotations onto the original PDF (rmapi can't render the Paper Pro's
+        # v6 format, so we do it ourselves with render_annotations).
         stem = Path(filename).stem
         remote = f"{folder.rstrip('/')}/{stem}"
         dest = out_dir / f"{stem}{ANNOTATED_SUFFIX}.pdf"
@@ -106,15 +108,22 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             refreshed += 1
             continue
 
-        # geta writes "<name>-annotations.pdf" into its working dir and ignores
-        # any output path, so run it in a temp dir and collect the result.
+        src, tmp = _source_pdf(cfg, zot, att_key, filename)
         with tempfile.TemporaryDirectory() as tmpdir:
-            res = rmapi("geta", "--a", remote, capture=True, cwd=tmpdir)
-            produced = next(Path(tmpdir).glob("*-annotations.pdf"), None)
-            if res.returncode != 0 or produced is None:
-                log(f"  no annotations yet   {title}")
-                continue
-            shutil.move(str(produced), str(dest))
+            res = rmapi("get", remote, capture=True, cwd=tmpdir)
+            bundle = next(Path(tmpdir).glob("*.rmdoc"), None) or next(
+                Path(tmpdir).glob("*.zip"), None
+            )
+            rendered = (
+                res.returncode == 0
+                and bundle is not None
+                and render_annotations(bundle, Path(src), dest)
+            )
+        if tmp:
+            tmp.unlink(missing_ok=True)
+        if not rendered:
+            log(f"  no annotations yet   {title}")
+            continue
 
         if reattach(zot, cfg, key, dest):
             if TAG_DONE not in tags:
