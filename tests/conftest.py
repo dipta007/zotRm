@@ -52,6 +52,11 @@ class FakeZotero:
         return self.files.get(att_key, b"%PDF-1.4 fake")
 
     def add_tags(self, item, *tags):
+        # Simulate Zotero's If-Unmodified-Since-Version check: a second add_tags on the
+        # same stale item dict in one sync pass would fail with HTTP 412 on real Zotero.
+        if item.get("_tagged_once"):
+            raise RuntimeError("412 Precondition Failed: item modified twice without refresh")
+        item["_tagged_once"] = True
         for tag in tags:
             self.added_tags.append((item["key"], tag))
 
