@@ -6,18 +6,30 @@ not on PATH we fail with a clear, actionable message instead of a traceback.
 
 from __future__ import annotations
 
+import os
 import subprocess
+from pathlib import Path
 
 from zotrm.config import die
 
 # Remote folders created this process; avoids redundant mkdir calls.
 _MADE_FOLDERS: set[str] = set()
 
+# Common user/Homebrew bin directories missing from cron's minimal PATH (/usr/bin:/bin).
+_EXTRA_BINS = (
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    str(Path.home() / ".local" / "bin"),
+    str(Path.home() / "go" / "bin"),
+)
+
 
 def rmapi(
     *args: str, capture: bool = False, cwd: str | None = None
 ) -> subprocess.CompletedProcess[str]:
     """Run an rmapi sub-command non-interactively (optionally in ``cwd``)."""
+    entries = [*os.environ.get("PATH", "").split(os.pathsep), *_EXTRA_BINS]
+    os.environ["PATH"] = os.pathsep.join(dict.fromkeys(entries)).strip(os.pathsep)
     try:
         return subprocess.run(
             ["rmapi", *args],

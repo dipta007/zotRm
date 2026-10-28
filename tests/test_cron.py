@@ -47,6 +47,8 @@ def test_zotrm_command_uses_exe_and_config(monkeypatch):
     assert zotrm_command(DEFAULT_CONFIG) == "/bin/zotrm sync"
     custom = Path("/tmp/other.ini")
     assert zotrm_command(custom) == f"/bin/zotrm --config {custom} sync"
+    spaced = Path("/Users/jane doe/zotrm.ini")
+    assert zotrm_command(spaced) == "/bin/zotrm --config '/Users/jane doe/zotrm.ini' sync"
 
 
 def test_zotrm_command_falls_back_to_module(monkeypatch):
@@ -60,6 +62,8 @@ def test_build_cron_line_has_command_log_and_marker():
     assert line.startswith("0 * * * * /usr/local/bin/zotrm sync")
     assert ">> /home/u/sync.log 2>&1" in line
     assert line.endswith(MARKER)
+    spaced = build_cron_line("0 * * * *", "/usr/local/bin/zotrm sync", "/Users/jane doe/sync.log")
+    assert ">> '/Users/jane doe/sync.log' 2>&1" in spaced
 
 
 def _fake_crontab(state):

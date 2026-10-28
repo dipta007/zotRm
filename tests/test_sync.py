@@ -12,12 +12,16 @@ from zotrm.cli import cmd_sync
 
 
 def test_rmapi_missing_exits_cleanly(monkeypatch):
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+
     def boom(*args, **kwargs):
         raise FileNotFoundError
 
     monkeypatch.setattr("zotrm.remarkable.subprocess.run", boom)
     with pytest.raises(SystemExit):
         remarkable.rmapi("put", "x", "/Papers")
+    assert "/opt/homebrew/bin" in remarkable.os.environ["PATH"]
+    assert "/usr/local/bin" in remarkable.os.environ["PATH"]
 
 
 @pytest.fixture
