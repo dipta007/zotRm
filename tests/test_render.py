@@ -52,9 +52,10 @@ def test_rm_to_pdf_matches_calibration():
 
 
 def test_parse_rm_splits_highlights_and_strokes(monkeypatch):
-    rect = SimpleNamespace(x=1, y=2, w=3, h=4)
+    r1 = SimpleNamespace(x=1, y=2, w=3, h=4)
+    r2 = SimpleNamespace(x=1, y=10, w=5, h=4)
     blocks = [
-        _block(SimpleNamespace(rectangles=[rect], text="hi")),  # highlight
+        _block(SimpleNamespace(rectangles=[r1, r2], text="hi")),  # multi-line highlight
         _block(SimpleNamespace(points=[SimpleNamespace(x=0, y=0)])),  # stroke
         _block(None),  # no value -> skipped
         _block(SimpleNamespace(other=1)),  # neither -> skipped
@@ -62,7 +63,7 @@ def test_parse_rm_splits_highlights_and_strokes(monkeypatch):
     monkeypatch.setattr("zotrm.render.read_blocks", lambda f: iter(blocks))
 
     highlights, strokes = parse_rm(b"x")
-    assert highlights == [(rect, "hi")]
+    assert highlights == [([r1, r2], "hi")]
     assert len(strokes) == 1 and len(strokes[0]) == 1
 
 
@@ -106,14 +107,16 @@ def test_pages_from_bundle_unknown_and_no_content(tmp_path):
 def test_add_highlight_creates_highlight_with_text():
     writer = PdfWriter()
     writer.add_blank_page(width=612, height=792)
-    rect = SimpleNamespace(x=-572.4, y=572.3, w=256.2, h=32.2)
-    add_highlight(writer, 0, rect, "Continual learning,", 612, 792)
+    r1 = SimpleNamespace(x=-572.4, y=572.3, w=256.2, h=32.2)
+    r2 = SimpleNamespace(x=-572.4, y=610.0, w=180.0, h=32.2)
+    add_highlight(writer, 0, [r1, r2], "Continual learning,", 612, 792)
 
     annots = writer.pages[0]["/Annots"]
     assert len(annots) == 1
     o = annots[0].get_object()
     assert o["/Subtype"] == "/Highlight"
     assert str(o["/Contents"]) == "Continual learning,"
+    assert len(o["/QuadPoints"]) == 16  # 8 coords per line rectangle
 
 
 def test_add_ink_creates_ink_with_appearance():
@@ -163,7 +166,7 @@ def test_render_annotations_multi_page(tmp_path, monkeypatch):
     rect = SimpleNamespace(x=-100, y=100, w=50, h=20)
     stroke = [SimpleNamespace(x=-100, y=100), SimpleNamespace(x=-80, y=120)]
     # page 0: highlight only; page 1: stroke only
-    results = iter([([(rect, "hi")], []), ([], [stroke])])
+    results = iter([([([rect], "hi")], []), ([], [stroke])])
     monkeypatch.setattr("zotrm.render.parse_rm", lambda _b: next(results))
 
     assert render_annotations(bundle, orig, out) is True

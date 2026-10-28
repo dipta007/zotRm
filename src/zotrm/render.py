@@ -52,13 +52,13 @@ def rm_to_pdf(x: float, y: float, page_w: float, page_h: float) -> tuple[float, 
 
 
 # --- parsing ---------------------------------------------------------------------
-def parse_rm(rm_bytes: bytes) -> tuple[list[tuple[Any, str]], list[list[Any]]]:
+def parse_rm(rm_bytes: bytes) -> tuple[list[tuple[list[Any], str]], list[list[Any]]]:
     """Parse one v6 ``.rm`` into (highlights, strokes).
 
-    highlights = [(rectangle, text), ...]   strokes = [[point, ...], ...]
+    highlights = [([rectangle, ...], text), ...]   strokes = [[point, ...], ...]
     where rectangle has .x/.y/.w/.h and point has .x/.y (rM coordinates).
     """
-    highlights: list[tuple[Any, str]] = []
+    highlights: list[tuple[list[Any], str]] = []
     strokes: list[list[Any]] = []
     for block in read_blocks(io.BytesIO(rm_bytes)):
         val = getattr(getattr(block, "item", None), "value", None)
@@ -68,7 +68,7 @@ def parse_rm(rm_bytes: bytes) -> tuple[list[tuple[Any, str]], list[list[Any]]]:
         text = getattr(val, "text", None)
         points = getattr(val, "points", None)
         if rects and text is not None:
-            highlights.append((rects[0], text))
+            highlights.append((list(rects), text))
         elif points:
             strokes.append(list(points))
     return highlights, strokes
@@ -99,12 +99,24 @@ def pages_from_bundle(rmdoc: Path) -> dict[int, bytes]:
 
 # --- annotation building ---------------------------------------------------------
 def add_highlight(
-    writer: PdfWriter, page_idx: int, rect: Any, text: str, page_w: float, page_h: float
+    writer: PdfWriter, page_idx: int, rects: list[Any], text: str, page_w: float, page_h: float
 ) -> None:
-    x0, y_top = rm_to_pdf(rect.x, rect.y, page_w, page_h)
-    x1, y_bot = rm_to_pdf(rect.x + rect.w, rect.y + rect.h, page_w, page_h)
-    quad = ArrayObject(FloatObject(v) for v in (x0, y_top, x1, y_top, x0, y_bot, x1, y_bot))
-    hl = Highlight(rect=(x0, y_bot, x1, y_top), quad_points=quad, highlight_color="ffd400")
+    boxes = [
+        (*rm_to_pdf(r.x, r.y, page_w, page_h), *rm_to_pdf(r.x + r.w, r.y + r.h, page_w, page_h))
+        for r in rects
+    ]
+    quad = ArrayObject(
+        FloatObject(v)
+        for x0, y_top, x1, y_bot in boxes
+        for v in (x0, y_top, x1, y_top, x0, y_bot, x1, y_bot)
+    )
+    bbox = (
+        min(b[0] for b in boxes),
+        min(b[3] for b in boxes),
+        max(b[2] for b in boxes),
+        max(b[1] for b in boxes),
+    )
+    hl = Highlight(rect=bbox, quad_points=quad, highlight_color="ffd400")
     hl[NameObject("/Contents")] = TextStringObject(text)
     writer.add_annotation(page_number=page_idx, annotation=hl)
 
@@ -170,8 +182,8 @@ def render_annotations(rmdoc: Path, original_pdf: Path, out: Path) -> bool:
         page = reader.pages[idx]
         w, h = float(page.mediabox.width), float(page.mediabox.height)
         highlights, strokes = parse_rm(rm_bytes)
-        for rect, text in highlights:
-            add_highlight(writer, idx, rect, text, w, h)
+        for rects, text in highlights:
+            add_highlight(writer, idx, rects, text, w, h)
             drawn = True
         if strokes:
             add_ink(writer, idx, strokes, w, h)
