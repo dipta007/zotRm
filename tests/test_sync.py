@@ -296,3 +296,35 @@ def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch):
 
     assert (out / "good (annotated).pdf").exists()  # still refreshed
     assert fake_zot.added_tags == []  # tag already present, not added again
+
+
+def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
+    parser, storage, out = cfg
+    i1 = make_item("K1", "Paper 1", tags=["rm:synced"])
+    i2 = make_item("K2", "Paper 2")  # same filename "paper.pdf", needs push
+    i3 = make_item("K3", "Paper 3", tags=["rm:synced"])  # same filename, needs refresh
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [i1, i2, i3]}
+    fake_zot.children_map = {
+        "K1": [make_pdf_child("att1", "paper.pdf")],
+        "K2": [make_pdf_child("att2", "paper.pdf")],
+        "K3": [make_pdf_child("att3", "paper.pdf")],
+    }
+    _store_pdf(storage, "att1", "paper.pdf")
+    _store_pdf(storage, "att2", "paper.pdf")
+    _store_pdf(storage, "att3", "paper.pdf")
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+    monkeypatch.setattr("zotrm.cli.reattach", lambda *a: True)
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(True))
+
+    calls = []
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake(calls))
+
+    cmd_sync(parser, dry_run=False)
+
+    assert calls == [
+        ["rmapi", "get", "/Papers/paper"],
+        ["rmapi", "get", "/Papers/paper (K3)"],
+    ]
+    assert (out / "paper (annotated).pdf").exists()
+    assert (out / "paper (K3) (annotated).pdf").exists()

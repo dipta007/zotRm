@@ -47,15 +47,18 @@ def _interactive() -> bool:
 
 
 @contextlib.contextmanager
-def _source_pdf(cfg: ConfigParser, zot: Any, att_key: str, filename: str) -> Iterator[Path]:
-    """Yield the local PDF path, or a temporary download cleaned up on exit."""
+def _source_pdf(
+    cfg: ConfigParser, zot: Any, att_key: str, filename: str, upload_name: str | None = None
+) -> Iterator[Path]:
+    """Yield the local PDF path, or a temporary copy/download cleaned up on exit."""
+    target_name = upload_name or filename
     local = local_pdf_path(cfg, att_key, filename)
-    if local:
+    if local and target_name == filename:
         yield local
         return
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmp = Path(tmpdir) / filename
-        tmp.write_bytes(zot.file(att_key))
+        tmp = Path(tmpdir) / target_name
+        tmp.write_bytes(local.read_bytes() if local else zot.file(att_key))
         yield tmp
 
 
@@ -70,6 +73,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
 
     pushed = 0
     refreshed = 0
+    seen_stems: set[str] = set()
     for item, folder in iter_items(zot, coll_key, base, mirror):
         key = item["key"]
         title = item["data"].get("title", key)[:70]
@@ -80,15 +84,18 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             log(f"  skip (no PDF)   {title}")
             continue
         att_key, filename = child
+        stem = Path(filename).stem
+        doc_stem = f"{stem} ({key})" if stem.lower() in seen_stems else stem
+        seen_stems.add(stem.lower())
 
         if TAG_SYNCED not in tags:
             # First time: push the original PDF to the tablet.
             if dry_run:
-                log(f"  would push      {title}  ->  {folder}/{filename}")
+                log(f"  would push      {title}  ->  {folder}/{doc_stem}.pdf")
                 pushed += 1
                 continue
             ensure_remote_folder(folder)
-            with _source_pdf(cfg, zot, att_key, filename) as src:
+            with _source_pdf(cfg, zot, att_key, filename, f"{doc_stem}.pdf") as src:
                 res = rmapi("put", str(src), folder, capture=True)
             if res.returncode != 0:
                 log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
@@ -101,9 +108,8 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
         # Already on the tablet: download the raw bundle and rebuild the
         # annotations onto the original PDF (rmapi can't render the Paper Pro's
         # v6 format, so we do it ourselves with render_annotations).
-        stem = Path(filename).stem
-        remote = f"{folder.rstrip('/')}/{stem}"
-        dest = out_dir / f"{stem}{ANNOTATED_SUFFIX}.pdf"
+        remote = f"{folder.rstrip('/')}/{doc_stem}"
+        dest = out_dir / f"{doc_stem}{ANNOTATED_SUFFIX}.pdf"
         if dry_run:
             log(f"  would refresh   {title}  ->  {dest}")
             refreshed += 1
