@@ -68,17 +68,31 @@ def test_reattach_zotero_replaces_existing(tmp_path):
     existing = make_pdf_child("OLD", "good (annotated).pdf")
     zot.children_map = {"P": [existing]}
     reattach(zot, _cfg({"file_mode": "zotero"}), "P", _pdf(tmp_path))
-    assert zot.deleted == [existing]  # old copy removed before adding the new one
+    assert zot.deleted == [existing]  # old copy removed after adding the new one
 
 
 def test_reattach_failure_returns_false(tmp_path, monkeypatch):
     zot = FakeZotero()
+    existing = make_pdf_child("OLD", "good (annotated).pdf")
+    zot.children_map = {"P": [existing]}
 
     def boom(_paths, _parent):
         raise RuntimeError("quota exceeded")
 
     monkeypatch.setattr(zot, "attachment_simple", boom)
     assert reattach(zot, _cfg({"file_mode": "zotero"}), "P", _pdf(tmp_path)) is False
+    assert zot.deleted == []  # previous annotated copy preserved on upload failure
+
+
+def test_reattach_zotero_failure_dict_preserves_existing(tmp_path, monkeypatch):
+    zot = FakeZotero()
+    existing = make_pdf_child("OLD", "good (annotated).pdf")
+    zot.children_map = {"P": [existing]}
+    monkeypatch.setattr(
+        zot, "attachment_simple", lambda _p, _k: {"failure": ["good (annotated).pdf"]}
+    )
+    assert reattach(zot, _cfg({"file_mode": "zotero"}), "P", _pdf(tmp_path)) is False
+    assert zot.deleted == []
 
 
 # ---- webdav backend ---------------------------------------------------------------
@@ -155,6 +169,8 @@ def test_reattach_webdav_without_user_skips_auth(tmp_path, monkeypatch):
 
 def test_reattach_webdav_http_error_returns_false(tmp_path, monkeypatch):
     zot = FakeZotero()
+    existing = make_pdf_child("OLD", "good (annotated).pdf")
+    zot.children_map = {"P": [existing]}
     cfg = _cfg({"file_mode": "webdav", "webdav_url": "https://dav/", "webdav_user": "u"})
 
     class _Resp:
@@ -168,3 +184,16 @@ def test_reattach_webdav_http_error_returns_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("zotrm.storage.urllib.request.urlopen", lambda req: _Resp())
     assert reattach(zot, cfg, "P", _pdf(tmp_path)) is False
+    # newly created item rolled back; previous existing item untouched
+    assert zot.deleted == [{"key": "NEWKEY", "version": 0}]
+
+
+def test_reattach_webdav_create_item_failure_returns_false(tmp_path, monkeypatch):
+    zot = FakeZotero()
+    existing = make_pdf_child("OLD", "good (annotated).pdf")
+    zot.children_map = {"P": [existing]}
+    cfg = _cfg({"file_mode": "webdav", "webdav_url": "https://dav/"})
+    monkeypatch.setattr(zot, "create_items", lambda _items: {"success": {}, "failed": {"0": "err"}})
+
+    assert reattach(zot, cfg, "P", _pdf(tmp_path)) is False
+    assert zot.deleted == []
