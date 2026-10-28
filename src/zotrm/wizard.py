@@ -186,6 +186,7 @@ def run_config_wizard(path: Path) -> bool:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_render(values))
+    path.chmod(0o600)
     log(f"  ✓ Wrote {path}")
     return True
 

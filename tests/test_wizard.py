@@ -40,6 +40,7 @@ def test_wizard_writes_config(tmp_path, monkeypatch):
 
     path = tmp_path / "config.ini"
     assert run_config_wizard(path) is True
+    assert path.stat().st_mode & 0o777 == 0o600
 
     cfg = configparser.ConfigParser()
     cfg.read(path)
