@@ -53,3 +53,15 @@ def ensure_remote_folder(folder: str, *, refresh: bool = False) -> None:
         if path not in _MADE_FOLDERS:
             rmapi("mkdir", path, capture=True)  # harmless if it already exists
             _MADE_FOLDERS.add(path)
+
+
+def list_remote_files(folder: str) -> set[str]:
+    """Return the set of full remote document paths under ``folder``."""
+    res = rmapi("find", folder, capture=True)
+    if res.returncode != 0:
+        return set()
+    return {
+        "/" + line[4:].strip().lstrip("/")
+        for line in res.stdout.splitlines()
+        if line.startswith("[f] ")
+    }

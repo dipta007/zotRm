@@ -24,7 +24,7 @@ from zotrm.config import (
     load_config,
     log,
 )
-from zotrm.remarkable import ensure_remote_folder, rmapi
+from zotrm.remarkable import ensure_remote_folder, list_remote_files, rmapi
 from zotrm.render import render_annotations
 from zotrm.storage import download_pdf, reattach
 from zotrm.zotero import (
@@ -65,7 +65,7 @@ def _source_pdf(
 def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
     zot = connect(cfg)
     rm = cfg["remarkable"]
-    base = rm.get("folder", "/Papers")
+    base = "/" + rm.get("folder", "/Papers").strip("/")
     mirror = _truthy(rm.get("mirror_subcollections", "true"))
     out_dir = Path(rm.get("output_dir", str(Path.home() / "zotrm-annotated"))).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -83,11 +83,10 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pair[0]["key"],
         ),
     )
+    plan: list[tuple[Any, str, str, str, bool, str, str]] = []
     for item, folder in entries:
         key = item["key"]
         title = item["data"].get("title", key)[:70]
-        tags = tags_of(item)
-
         child = pdf_child(zot, key)
         if not child:
             log(f"  skip (no PDF)   {title}")
@@ -95,9 +94,20 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
         att_key, filename = child
         stem = Path(filename).stem
         disambig_tag = f"{TAG_SYNCED}:{key}"
-        is_dup = disambig_tag in tags or stem.lower() in seen_stems
+        is_dup = disambig_tag in tags_of(item) or stem.lower() in seen_stems
         doc_stem = f"{stem} ({key})" if is_dup else stem
         seen_stems.add(doc_stem.lower())
+        remote = f"{folder.rstrip('/')}/{doc_stem}"
+        plan.append((item, folder, att_key, filename, is_dup, doc_stem, remote))
+
+    on_tablet = set() if dry_run else list_remote_files(base)
+    unclaimed = on_tablet - {remote for *_, remote in plan}
+
+    for item, folder, att_key, filename, is_dup, doc_stem, remote in plan:
+        key = item["key"]
+        title = item["data"].get("title", key)[:70]
+        tags = tags_of(item)
+        disambig_tag = f"{TAG_SYNCED}:{key}"
 
         if TAG_SYNCED not in tags:
             # First time: push the original PDF to the tablet.
@@ -119,10 +129,17 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pushed += 1
             continue
 
+        if remote not in on_tablet:
+            old = next((p for p in sorted(unclaimed) if Path(p).name == doc_stem), None)
+            if old:
+                unclaimed.discard(old)
+                ensure_remote_folder(folder)
+                rmapi("mv", old, folder, capture=True)
+                log(f"  moved           {old}  ->  {folder}")
+
         # Already on the tablet: download the raw bundle and rebuild the
         # annotations onto the original PDF (rmapi can't render the Paper Pro's
         # v6 format, so we do it ourselves with render_annotations).
-        remote = f"{folder.rstrip('/')}/{doc_stem}"
         dest = out_dir / f"{doc_stem}{ANNOTATED_SUFFIX}.pdf"
         if dry_run:
             log(f"  would refresh   {title}  ->  {dest}")
@@ -149,6 +166,11 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
         else:
             log(f"  saved locally   {title}  ->  {dest}")
         refreshed += 1
+
+    if _truthy(rm.get("prune", "true")):
+        for stale in sorted(unclaimed):
+            rmapi("rm", stale, capture=True)
+            log(f"  removed         {stale}")
 
     suffix = " (dry run)" if dry_run else ""
     log(f"\nsync complete{suffix}: {pushed} pushed, {refreshed} refreshed.")
