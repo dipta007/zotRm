@@ -68,12 +68,13 @@ def test_annotated_child_finds_and_misses():
     assert annotated_child(zot, "I", "missing.pdf") is None
 
 
-def test_local_pdf_path_present_absent_and_unset(tmp_path):
-    # storage_dir set and file present -> returns the path
+def test_local_pdf_path_present_absent_and_unset(tmp_path, monkeypatch):
+    # storage_dir set (including ~) and file present -> returns the path
+    monkeypatch.setenv("HOME", str(tmp_path))
     store = tmp_path / "storage"
     (store / "ATT").mkdir(parents=True)
     (store / "ATT" / "p.pdf").write_bytes(b"%PDF")
-    assert local_pdf_path(_cfg(storage_dir=str(store)), "ATT", "p.pdf") == store / "ATT" / "p.pdf"
+    assert local_pdf_path(_cfg(storage_dir="~/storage"), "ATT", "p.pdf") == store / "ATT" / "p.pdf"
 
     # storage_dir set but file missing -> None
     assert local_pdf_path(_cfg(storage_dir=str(store)), "ATT", "missing.pdf") is None

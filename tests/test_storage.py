@@ -3,6 +3,7 @@
 import configparser
 import zipfile
 from io import BytesIO
+from pathlib import Path
 
 from conftest import FakeZotero, make_pdf_child
 
@@ -55,10 +56,12 @@ def test_reattach_none_skips(tmp_path):
 # ---- zotero backend ---------------------------------------------------------------
 
 
-def test_reattach_zotero_uses_basename(tmp_path):
+def test_reattach_zotero_uses_basename(tmp_path, monkeypatch):
     zot = FakeZotero()
     pdf = _pdf(tmp_path)
-    assert reattach(zot, _cfg({"file_mode": "zotero"}), "P", pdf) is True
+    monkeypatch.chdir(tmp_path)
+    # pass a relative Path so resolve() is exercised
+    assert reattach(zot, _cfg({"file_mode": "zotero"}), "P", Path(pdf.name)) is True
     # attached by basename only (not the full path)
     assert zot.attachments == [(["good (annotated).pdf"], "P")]
 
