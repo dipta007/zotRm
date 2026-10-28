@@ -25,9 +25,10 @@ notes back into Zotero — with one command.
 It remembers what it has done (using Zotero tags), so it's safe to run again and again —
 great for a cron schedule.
 
-> **One honest limit (this is reMarkable's behavior, not a bug here):**
-> Your highlights and handwriting come back as part of the PDF image — "painted onto"
-> the page. They do **not** come back as clickable Zotero highlights.
+> **How annotations come back:**
+> Text highlights (snap-to-text on the tablet) come back as native, editable PDF
+> highlights carrying the highlighted text in Zotero; freehand pen strokes come back as
+> PDF ink annotations.
 
 ## Why zotrm?
 
@@ -213,10 +214,10 @@ Run any command with `--dry-run` first if you're unsure — it changes nothing.
 Yes, in practice. `zotrm` talks to the reMarkable **cloud** through `rmapi`, and two-way
 document sync (uploading PDFs and downloading annotated ones) needs Connect.
 
-**Why don't my highlights come back as real Zotero highlights?**
-The reMarkable returns a flattened PDF — your marks are baked into the page image. That's a
-reMarkable limitation, not something `zotrm` can change. You get a faithful annotated PDF
-re-attached to the item, just not editable highlight objects.
+**How do my highlights and handwriting come back into Zotero?**
+`zotrm` reconstructs your marks directly onto the original PDF: snap-to-text highlights
+become native, editable PDF `/Highlight` annotations (carrying the highlighted text), and
+freehand pen strokes become PDF `/Ink` annotations.
 
 **Does it duplicate files if I run it again?**
 No. It keeps exactly **one** `… (annotated).pdf` per paper and overwrites it on each sync,

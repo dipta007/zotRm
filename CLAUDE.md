@@ -35,10 +35,11 @@ driven entirely by two Zotero tags — there is no database:
 - `rm:annotated` — an annotated copy has been pulled back at least once.
 
 `sync` logic per item (`cli.py:cmd_sync`): **first time** (`rm:synced` absent) push the
-*original* PDF to the tablet; **after that** run `rmapi geta` and refresh a single
-`… (annotated).pdf` in Zotero. The original is never re-pushed and never modified; the
-annotated copy is replaced (not duplicated) each run. `geta` failing means "no annotations
-yet" and the item is left to retry. `cron` schedules `zotrm sync`.
+*original* PDF to the tablet; **after that** run `rmapi get` to download the raw `.rmdoc`
+bundle, reconstruct v6 annotations onto the original PDF via `render_annotations`, and
+refresh a single `… (annotated).pdf` in Zotero. The original is never re-pushed and never
+modified; the annotated copy is replaced (not duplicated) each run. Having no annotations
+yet leaves the item to retry on later syncs. `cron` schedules `zotrm sync`.
 
 Module responsibilities (each is small and single-purpose):
 
@@ -52,9 +53,13 @@ Module responsibilities (each is small and single-purpose):
   mirroring.
 - `remarkable.py` — thin `rmapi` subprocess wrapper (+ remote-folder creation), with a clean
   "rmapi not found" exit.
+- `render.py` — parses reMarkable v6 `.rm` scene files from the downloaded `.rmdoc`/`.zip`
+  bundle (`rmscene`) and writes editable PDF `/Highlight` and `/Ink` annotations (`pypdf`)
+  onto the original PDF.
 - `storage.py` — the re-attach backends, selected by `file_mode` (`zotero` | `webdav` |
-  `none`). `reattach()` removes the old annotated copy then dispatches; a backend failure
-  returns `False` so the caller does **not** tag the item done (no orphan, retry next sync).
+  `none`). `reattach()` uploads the updated annotated copy then removes the old one (or
+  skips when MD5 is unchanged); a backend failure rolls back and returns `False` so the
+  caller does **not** tag the item done (no orphan, retry next sync).
 - `wizard.py` (`zotrm config`) — questionary-driven setup; collects `file_mode` + WebDAV
   settings, verifies the Zotero key live, writes a self-documenting INI.
 - `cron.py` (`zotrm cron`) — builds a schedule and edits the user crontab idempotently
@@ -62,11 +67,12 @@ Module responsibilities (each is small and single-purpose):
 
 ### External dependency: rmapi (the ddvk fork)
 
-`rmapi` is a **runtime system prerequisite**, not a Python dep — never `uv add` it. Its CLI
-is quirky and bit us: `geta` **ignores any output-path argument** and writes
-`<name>-annotations.pdf` into its *working directory*, and needs `--a` for the full document.
-So `cmd_sync` runs `rmapi("geta", "--a", remote, cwd=tmpdir)` and collects `*-annotations.pdf`
-from that temp dir. The remote doc name is the original PDF's filename stem.
+`rmapi` is a **runtime system prerequisite**, not a Python dep — never `uv add` it. Because
+`rmapi geta` cannot render the Paper Pro's v6 `.rm` format, `cmd_sync` runs
+`rmapi("get", remote, cwd=tmpdir)` to download the raw `.rmdoc`/`.zip` bundle into `tmpdir`
+and renders annotations in Python (`render.py`). The remote doc name is the original PDF's
+filename stem (disambiguated with ` (<item_key>)` if duplicate stems exist in the
+collection).
 
 ### WebDAV backend (`storage._attach_webdav`)
 

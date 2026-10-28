@@ -72,8 +72,8 @@ still works and maps to `file_mode = none`.
   several profiles:
 
   ```sh
-  zotrm --config ~/work/zotrm.ini push
-  zotrm --config ~/personal/zotrm.ini push
+  zotrm --config ~/work/zotrm.ini sync
+  zotrm --config ~/personal/zotrm.ini sync
   ```
 
 ## Sub-collection mirroring
@@ -116,21 +116,19 @@ python -m zotrm status
 - **Zotero check fails in the wizard** — usually a mistyped `library_id`/`api_key`, or the
   key lacks write access. You can still save and fix it later.
 - **`crontab not found`** — `zotrm cron` needs cron, available on macOS and Linux.
-- **Nothing comes back on pull** — the tablet must be online and synced to the reMarkable
-  cloud, and two-way document sync requires a reMarkable Connect subscription. Also
-  remember annotations only return as a flattened PDF, never as editable Zotero
-  highlights.
-- **"no annotations yet / failed"** — that paper has no annotations on the tablet yet, so
+- **Nothing comes back on sync** — the tablet must be online and synced to the reMarkable
+  cloud, and two-way document sync requires a reMarkable Connect subscription.
+- **"no annotations yet"** — that paper has no annotations on the tablet yet, so
   there's nothing to render. It stays in "reading" and will be picked up once you annotate
   and sync it.
-- **`File would exceed quota` on pull** — your Zotero cloud storage is full (the free tier
-  is 300 MB). `zotrm` still saves the annotated PDF locally in your `output_dir`; free up
-  or upgrade Zotero storage to re-attach it to the item.
+- **`File would exceed quota` on sync** — your Zotero cloud storage is full (the free tier
+  is 300 MB). `zotrm` still saves the annotated PDF locally in your `output_dir`; switch
+  `file_mode` to `webdav` or `none` (via `zotrm config`), or free up Zotero storage.
 
 ## Recording the demo GIF
 
-The README shows `docs/demo.gif`. A short (10–20s) clip of `zotrm push` → annotating on the
-tablet → `zotrm pull` is the most valuable thing in the README. A few easy ways:
+The README shows `docs/demo.gif`. A short (10–20s) clip of `zotrm sync` → annotating on the
+tablet → `zotrm sync` is the most valuable thing in the README. A few easy ways:
 
 - **[vhs](https://github.com/charmbracelet/vhs)** (scripted, reproducible terminal GIFs):
 
