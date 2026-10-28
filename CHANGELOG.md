@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-10-28
+
+### Added
+
+- Styled CLI output with `rich`: color-coded action badges (`↑ pushed`, `↻ refreshed`,
+  `↪ moved`, `− removed`, dimmed `· no annotations yet`), styled arrows and folder paths,
+  and highlighted `zotrm status` sections.
+
 ## [0.2.6] - 2026-10-28
 
 ### Fixed
@@ -113,7 +121,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/dipta007/zotRm/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/dipta007/zotRm/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dipta007/zotRm/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dipta007/zotRm/compare/v0.2.3...v0.2.4
