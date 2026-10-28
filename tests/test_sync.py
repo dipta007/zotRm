@@ -129,6 +129,9 @@ def test_sync_push_via_api_when_not_local(cfg, fake_zot, rmapi_run, monkeypatch)
 
     cmd_sync(parser, dry_run=False)
     assert fake_zot.added_tags == [("G", "rm:synced")]
+    put_src = Path(next(c[2] for c in rmapi_run.calls if c[1] == "put"))
+    assert put_src.name == "good.pdf"
+    assert not put_src.exists()  # temp download cleaned up on context exit
 
 
 def test_sync_push_failure_not_tagged(cfg, fake_zot, monkeypatch):

@@ -8,8 +8,10 @@ tablet (the original is never touched again). ``status`` shows the state.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 import tempfile
+from collections.abc import Iterator
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any
@@ -44,16 +46,17 @@ def _interactive() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
-def _source_pdf(
-    cfg: ConfigParser, zot: Any, att_key: str, filename: str
-) -> tuple[str, Path | None]:
-    """Return (path, temp_to_clean): the local PDF, or a temp download from the API."""
+@contextlib.contextmanager
+def _source_pdf(cfg: ConfigParser, zot: Any, att_key: str, filename: str) -> Iterator[Path]:
+    """Yield the local PDF path, or a temporary download cleaned up on exit."""
     local = local_pdf_path(cfg, att_key, filename)
     if local:
-        return str(local), None
-    tmp = Path(tempfile.gettempdir()) / filename
-    tmp.write_bytes(zot.file(att_key))
-    return str(tmp), tmp
+        yield local
+        return
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir) / filename
+        tmp.write_bytes(zot.file(att_key))
+        yield tmp
 
 
 def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
@@ -85,10 +88,8 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
                 pushed += 1
                 continue
             ensure_remote_folder(folder)
-            src, tmp = _source_pdf(cfg, zot, att_key, filename)
-            res = rmapi("put", src, folder, capture=True)
-            if tmp:
-                tmp.unlink(missing_ok=True)
+            with _source_pdf(cfg, zot, att_key, filename) as src:
+                res = rmapi("put", str(src), folder, capture=True)
             if res.returncode != 0:
                 log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
                 continue
@@ -115,10 +116,8 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             )
             rendered = False
             if res.returncode == 0 and bundle is not None:
-                src, tmp = _source_pdf(cfg, zot, att_key, filename)
-                rendered = render_annotations(bundle, Path(src), dest)
-                if tmp:
-                    tmp.unlink(missing_ok=True)
+                with _source_pdf(cfg, zot, att_key, filename) as src:
+                    rendered = render_annotations(bundle, src, dest)
         if not rendered:
             log(f"  no annotations yet   {title}")
             continue
