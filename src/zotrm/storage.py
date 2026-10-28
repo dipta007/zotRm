@@ -76,7 +76,7 @@ def _attach_zotero(zot: Any, parent_key: str, local_pdf: Path, filename: str) ->
     """
     cwd = os.getcwd()
     try:
-        os.chdir(local_pdf.parent)
+        os.chdir(local_pdf.resolve().parent)
         res = zot.attachment_simple([filename], parent_key)
         if res.get("failure"):
             raise RuntimeError(f"Zotero attachment upload failed: {res['failure']}")

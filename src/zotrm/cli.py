@@ -67,7 +67,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
     rm = cfg["remarkable"]
     base = rm.get("folder", "/Papers")
     mirror = _truthy(rm.get("mirror_subcollections", "true"))
-    out_dir = Path(rm.get("output_dir", str(Path.home() / "zotrm-annotated")))
+    out_dir = Path(rm.get("output_dir", str(Path.home() / "zotrm-annotated"))).expanduser()
     out_dir.mkdir(parents=True, exist_ok=True)
     coll_key = find_collection_key(zot, rm["collection"])
 

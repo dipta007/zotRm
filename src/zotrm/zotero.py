@@ -70,7 +70,7 @@ def local_pdf_path(cfg: ConfigParser, att_key: str, filename: str) -> Path | Non
     """Return the locally-synced PDF path if it exists, else None."""
     storage = cfg["zotero"].get("storage_dir", "").strip()
     if storage:
-        p = Path(storage) / att_key / filename
+        p = Path(storage).expanduser() / att_key / filename
         if p.exists():
             return p
     return None
