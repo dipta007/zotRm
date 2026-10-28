@@ -40,6 +40,26 @@ def file_mode(cfg: ConfigParser) -> str:
     return "zotero"
 
 
+def download_pdf(zot: Any, cfg: ConfigParser, att_key: str) -> bytes:
+    """Download an attachment's PDF bytes from WebDAV (if configured) or Zotero storage."""
+    if file_mode(cfg) == "webdav":
+        return _webdav_get_pdf(cfg, att_key)
+    return bytes(zot.file(att_key))
+
+
+def _webdav_get_pdf(cfg: ConfigParser, att_key: str) -> bytes:
+    z = cfg["zotero"]
+    base = z["webdav_url"].rstrip("/")
+    user = z.get("webdav_user", "")
+    password = z.get("webdav_pass", "")
+    req = urllib.request.Request(f"{base}/zotero/{att_key}.zip", method="GET")  # noqa: S310
+    if user:
+        token = base64.b64encode(f"{user}:{password}".encode()).decode()
+        req.add_header("Authorization", f"Basic {token}")
+    with urllib.request.urlopen(req) as resp, zipfile.ZipFile(io.BytesIO(resp.read())) as zf:  # noqa: S310
+        return zf.read(zf.namelist()[0])
+
+
 def reattach(zot: Any, cfg: ConfigParser, parent_key: str, local_pdf: Path) -> bool:
     """Replace the parent's single annotated copy with ``local_pdf``.
 

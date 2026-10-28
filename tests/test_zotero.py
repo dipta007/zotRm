@@ -79,5 +79,9 @@ def test_local_pdf_path_present_absent_and_unset(tmp_path, monkeypatch):
     # storage_dir set but file missing -> None
     assert local_pdf_path(_cfg(storage_dir=str(store)), "ATT", "missing.pdf") is None
 
-    # storage_dir unset -> None
+    # storage_dir unset -> defaults to ~/Zotero/storage (None if absent, path if present)
     assert local_pdf_path(_cfg(), "ATT", "p.pdf") is None
+    default_pdf = tmp_path / "Zotero" / "storage" / "ATT" / "p.pdf"
+    default_pdf.parent.mkdir(parents=True)
+    default_pdf.write_bytes(b"%PDF")
+    assert local_pdf_path(_cfg(), "ATT", "p.pdf") == default_pdf

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from conftest import FakeZotero, make_pdf_child
 
-from zotrm.storage import file_mode, reattach
+from zotrm.storage import download_pdf, file_mode, reattach
 
 
 def _cfg(zotero=None, remarkable=None):
@@ -214,3 +214,45 @@ def test_reattach_webdav_create_item_failure_returns_false(tmp_path, monkeypatch
 
     assert reattach(zot, cfg, "P", _pdf(tmp_path)) is False
     assert zot.deleted == []
+
+
+def test_download_pdf_zotero_and_webdav(monkeypatch):
+    zot = FakeZotero()
+    zot.files["ATT"] = b"%PDF from zotero"
+    assert download_pdf(zot, _cfg({"file_mode": "zotero"}), "ATT") == b"%PDF from zotero"
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("paper.pdf", b"%PDF from webdav")
+    zip_bytes = buf.getvalue()
+
+    seen_auth = []
+
+    class _GetResp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return zip_bytes
+
+    def fake_urlopen(req):
+        seen_auth.append(req.get_header("Authorization"))
+        return _GetResp()
+
+    monkeypatch.setattr("zotrm.storage.urllib.request.urlopen", fake_urlopen)
+    cfg_auth = _cfg(
+        {
+            "file_mode": "webdav",
+            "webdav_url": "https://dav/",
+            "webdav_user": "u",
+            "webdav_pass": "p",
+        }
+    )
+    cfg_no_auth = _cfg({"file_mode": "webdav", "webdav_url": "https://dav/"})
+    assert download_pdf(zot, cfg_auth, "ATT") == b"%PDF from webdav"
+    assert download_pdf(zot, cfg_no_auth, "ATT") == b"%PDF from webdav"
+    assert seen_auth[0].startswith("Basic ")
+    assert seen_auth[1] is None
