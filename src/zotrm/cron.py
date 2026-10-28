@@ -7,6 +7,7 @@ crontab merge logic are kept as plain functions so they are easy to test.
 from __future__ import annotations
 
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -74,11 +75,11 @@ def zotrm_command(config_path: Path) -> str:
     if config_path != DEFAULT_CONFIG:
         parts += ["--config", str(config_path)]
     parts.append("sync")
-    return " ".join(parts)
+    return shlex.join(parts)
 
 
 def build_cron_line(schedule: str, command: str, logfile: str) -> str:
-    return f"{schedule} {command} >> {logfile} 2>&1  {MARKER}"
+    return f"{schedule} {command} >> {shlex.quote(logfile)} 2>&1  {MARKER}"
 
 
 def _crontab(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
