@@ -68,12 +68,9 @@ def annotated_child(zot: Any, item_key: str, filename: str) -> Any | None:
 
 def local_pdf_path(cfg: ConfigParser, att_key: str, filename: str) -> Path | None:
     """Return the locally-synced PDF path if it exists, else None."""
-    storage = cfg["zotero"].get("storage_dir", "").strip()
-    if storage:
-        p = Path(storage).expanduser() / att_key / filename
-        if p.exists():
-            return p
-    return None
+    storage = cfg["zotero"].get("storage_dir", "").strip() or "~/Zotero/storage"
+    p = Path(storage).expanduser() / att_key / filename
+    return p if p.exists() else None
 
 
 def tags_of(item: Any) -> set[str]:

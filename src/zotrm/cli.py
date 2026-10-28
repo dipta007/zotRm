@@ -26,7 +26,7 @@ from zotrm.config import (
 )
 from zotrm.remarkable import ensure_remote_folder, rmapi
 from zotrm.render import render_annotations
-from zotrm.storage import reattach
+from zotrm.storage import download_pdf, reattach
 from zotrm.zotero import (
     connect,
     find_collection_key,
@@ -58,7 +58,7 @@ def _source_pdf(
         return
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir) / target_name
-        tmp.write_bytes(local.read_bytes() if local else zot.file(att_key))
+        tmp.write_bytes(local.read_bytes() if local else download_pdf(zot, cfg, att_key))
         yield tmp
 
 
