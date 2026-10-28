@@ -42,8 +42,11 @@ def rmapi(
         die("rmapi not found on PATH. Install the ddvk fork: brew install rmapi")
 
 
-def ensure_remote_folder(folder: str) -> None:
+def ensure_remote_folder(folder: str, *, refresh: bool = False) -> None:
     """Create a (possibly nested) reMarkable folder, one level at a time."""
+    if refresh:
+        rmapi("refresh", capture=True)
+        _MADE_FOLDERS.clear()
     path = ""
     for part in (p for p in folder.strip("/").split("/") if p):
         path = f"{path}/{part}"

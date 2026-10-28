@@ -153,6 +153,37 @@ def test_sync_push_failure_not_tagged(cfg, fake_zot, monkeypatch):
     assert fake_zot.added_tags == []
 
 
+def test_sync_push_retries_after_stale_directory_cache(cfg, fake_zot, monkeypatch):
+    parser, storage, _out = cfg
+    item = make_item("G", "Paper")
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [item]}
+    fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
+    _store_pdf(storage, "attG", "good.pdf")
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+
+    calls = []
+    put_attempts = 0
+
+    def flaky_put(cmd, **kwargs):
+        nonlocal put_attempts
+        calls.append(list(cmd[:2]))
+        if cmd[1] == "put":
+            put_attempts += 1
+            if put_attempts == 1:
+                return subprocess.CompletedProcess(
+                    cmd, 1, stdout="", stderr="Error:  directory doesn't exist"
+                )
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", flaky_put)
+
+    cmd_sync(parser, dry_run=False)
+    assert ["rmapi", "refresh"] in calls
+    assert put_attempts == 2
+    assert fake_zot.added_tags == [("G", "rm:synced")]
+
+
 def test_sync_skips_item_without_original_pdf(cfg, fake_zot, rmapi_run, monkeypatch):
     parser, _storage, _out = cfg
     item = make_item("G", "Only annotated")
