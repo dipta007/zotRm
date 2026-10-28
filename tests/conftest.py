@@ -86,26 +86,29 @@ class FakeQuestionary:
     def __init__(self, answers):
         self._answers = list(answers)
         self._i = 0
+        self.prompts = []
 
-    def _next(self):
+    def _next(self, *a):
+        if a:
+            self.prompts.append(a[0])
         value = self._answers[self._i]
         self._i += 1
         return _Answer(value)
 
     def text(self, *a, **k):
-        return self._next()
+        return self._next(*a)
 
     def password(self, *a, **k):
-        return self._next()
+        return self._next(*a)
 
     def select(self, *a, **k):
-        return self._next()
+        return self._next(*a)
 
     def confirm(self, *a, **k):
-        return self._next()
+        return self._next(*a)
 
     def path(self, *a, **k):
-        return self._next()
+        return self._next(*a)
 
 
 class RmapiRecorder:

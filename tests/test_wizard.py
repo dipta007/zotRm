@@ -19,9 +19,11 @@ def _good_zotero(_cfg):
 
 
 def _patch(monkeypatch, answers, *, connect=_good_zotero, rmapi="/usr/bin/rmapi"):
-    monkeypatch.setattr("zotrm.wizard.questionary", FakeQuestionary(answers))
+    fq = FakeQuestionary(answers)
+    monkeypatch.setattr("zotrm.wizard.questionary", fq)
     monkeypatch.setattr("zotrm.wizard.connect", connect)
     monkeypatch.setattr("zotrm.wizard.shutil.which", lambda _name: rmapi)
+    return fq
 
 
 def test_wizard_writes_config(tmp_path, monkeypatch):
@@ -75,20 +77,37 @@ def test_wizard_webdav_collects_credentials(tmp_path, monkeypatch):
 def test_wizard_prefills_and_keeps_api_key(tmp_path, monkeypatch):
     path = tmp_path / "config.ini"
     path.write_text(
-        "[zotero]\nlibrary_id = 999\napi_key = old-key\nlibrary_type = group\nfile_mode = none\n"
+        "[zotero]\nlibrary_id = 999\napi_key = old-key\nlibrary_type = group\n"
+        "file_mode = webdav\nwebdav_url = https://dav/\nwebdav_user = u\nwebdav_pass = old-pw\n"
         "[remarkable]\ncollection = Old\nfolder = /Old\n"
         "mirror_subcollections = false\noutput_dir = /tmp/x\n"
     )
-    # api_key prompt becomes the "keep existing?" confirm (True) -> reuse old key.
-    answers = ["999", True, "group", "", "Old", "/Old", False, "/tmp/x", "none"]
-    _patch(monkeypatch, answers, rmapi=None)  # rmapi missing branch too
+    # api_key and webdav_pass prompts ask to keep existing values (True) -> reuse both.
+    answers = [
+        "999",
+        True,
+        "group",
+        "",
+        "Old",
+        "/Old",
+        False,
+        "/tmp/x",
+        "webdav",
+        "https://dav/",
+        "u",
+        True,
+    ]
+    fq = _patch(monkeypatch, answers, rmapi=None)  # rmapi missing branch too
 
     assert run_config_wizard(path) is True
+    assert "Keep the existing Zotero API key?" in fq.prompts
+    assert "Keep the existing WebDAV password?" in fq.prompts
     cfg = configparser.ConfigParser()
     cfg.read(path)
     assert cfg["zotero"]["api_key"] == "old-key"
+    assert cfg["zotero"]["webdav_pass"] == "old-pw"
     assert cfg["zotero"]["library_type"] == "group"
-    assert cfg["zotero"]["file_mode"] == "none"
+    assert cfg["zotero"]["file_mode"] == "webdav"
     assert cfg["remarkable"]["mirror_subcollections"] == "false"
 
 
