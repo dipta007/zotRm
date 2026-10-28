@@ -70,6 +70,7 @@ def build_schedule(
 
 def zotrm_command(config_path: Path) -> str:
     """Build the absolute command cron should run."""
+    config_path = config_path.expanduser().absolute()
     exe = shutil.which("zotrm")
     parts = [exe] if exe else [sys.executable, "-m", "zotrm"]
     if config_path != DEFAULT_CONFIG:
@@ -145,6 +146,7 @@ def _ask(question: Any) -> Any:
 
 def run_cron_setup(config_path: Path) -> None:
     """Interactively schedule an automatic ``zotrm sync`` via cron."""
+    config_path = config_path.expanduser().absolute()
     if not config_path.exists():
         log(f"No config at {config_path}. Run 'zotrm config' first.")
         return
