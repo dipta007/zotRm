@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from zotrm.config import die
 
 # Remote folders created this process; avoids redundant mkdir calls.
 _MADE_FOLDERS: set[str] = set()
+
+# Backoff delays (seconds) when reMarkable's auth endpoint returns HTTP 429.
+_RETRY_DELAYS = (2.0, 5.0, 10.0)
 
 # Common user/Homebrew bin directories missing from cron's minimal PATH (/usr/bin:/bin).
 _EXTRA_BINS = (
@@ -24,12 +28,9 @@ _EXTRA_BINS = (
 )
 
 
-def rmapi(
-    *args: str, capture: bool = False, cwd: str | None = None
+def _run_rmapi(
+    args: tuple[str, ...], capture: bool, cwd: str | None
 ) -> subprocess.CompletedProcess[str]:
-    """Run an rmapi sub-command non-interactively (optionally in ``cwd``)."""
-    entries = [*os.environ.get("PATH", "").split(os.pathsep), *_EXTRA_BINS]
-    os.environ["PATH"] = os.pathsep.join(dict.fromkeys(entries)).strip(os.pathsep)
     try:
         return subprocess.run(
             ["rmapi", *args],
@@ -42,6 +43,21 @@ def rmapi(
         die("rmapi not found on PATH. Install the ddvk fork: brew install rmapi")
 
 
+def rmapi(
+    *args: str, capture: bool = False, cwd: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run an rmapi sub-command non-interactively, retrying on HTTP 429 rate limits."""
+    entries = [*os.environ.get("PATH", "").split(os.pathsep), *_EXTRA_BINS]
+    os.environ["PATH"] = os.pathsep.join(dict.fromkeys(entries)).strip(os.pathsep)
+    res = _run_rmapi(args, capture, cwd)
+    for delay in _RETRY_DELAYS:
+        if res.returncode == 0 or "status 429" not in (res.stderr or ""):
+            break
+        time.sleep(delay)
+        res = _run_rmapi(args, capture, cwd)
+    return res
+
+
 def ensure_remote_folder(folder: str, *, refresh: bool = False) -> None:
     """Create a (possibly nested) reMarkable folder, one level at a time."""
     if refresh:
@@ -51,8 +67,9 @@ def ensure_remote_folder(folder: str, *, refresh: bool = False) -> None:
     for part in (p for p in folder.strip("/").split("/") if p):
         path = f"{path}/{part}"
         if path not in _MADE_FOLDERS:
-            rmapi("mkdir", path, capture=True)  # harmless if it already exists
-            _MADE_FOLDERS.add(path)
+            res = rmapi("mkdir", path, capture=True)
+            if res.returncode == 0 or "already exists" in (res.stderr or ""):
+                _MADE_FOLDERS.add(path)
 
 
 def list_remote_files(folder: str) -> set[str]:
