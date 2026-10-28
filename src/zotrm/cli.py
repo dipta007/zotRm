@@ -167,13 +167,15 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             log(f"  saved locally   {title}  ->  {dest}")
         refreshed += 1
 
+    removed = 0
     if _truthy(rm.get("prune", "true")):
         for stale in sorted(unclaimed):
             rmapi("rm", stale, capture=True)
             log(f"  removed         {stale}")
+            removed += 1
 
     suffix = " (dry run)" if dry_run else ""
-    log(f"\nsync complete{suffix}: {pushed} pushed, {refreshed} refreshed.")
+    log(f"\nsync complete{suffix}: {pushed} pushed, {refreshed} refreshed, {removed} removed.")
 
 
 def cmd_status(cfg: ConfigParser, dry_run: bool) -> None:
