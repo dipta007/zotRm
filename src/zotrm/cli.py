@@ -108,6 +108,9 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             ensure_remote_folder(folder)
             with _source_pdf(cfg, zot, att_key, filename, f"{doc_stem}.pdf") as src:
                 res = rmapi("put", str(src), folder, capture=True)
+                if res.returncode != 0 and "directory doesn't exist" in res.stderr:
+                    ensure_remote_folder(folder, refresh=True)
+                    res = rmapi("put", str(src), folder, capture=True)
             if res.returncode != 0:
                 log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
                 continue
