@@ -240,6 +240,7 @@ def test_sync_refresh_download_fails(cfg, fake_zot, monkeypatch):
     parser, _storage, _out = cfg
     _synced_item(fake_zot)
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+    monkeypatch.setattr("zotrm.cli._source_pdf", lambda *a: pytest.fail("should not download pdf"))
     monkeypatch.setattr("zotrm.cli.render_annotations", lambda *a: pytest.fail("no render"))
 
     def get_fails(cmd, **kwargs):
