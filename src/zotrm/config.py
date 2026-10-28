@@ -37,6 +37,7 @@ _BADGE_STYLES: dict[str, tuple[str, str, str]] = {
     "saved locally": ("↓ saved locally", "bold yellow", ""),
     "would push": ("• would push", "bold blue", ""),
     "would refresh": ("• would refresh", "bold blue", ""),
+    "up to date": ("✓ up to date", "dim green", "dim"),
     "no annotations yet": ("· no annotations yet", "dim", "dim"),
     "skip (no PDF)": ("! skip (no PDF)", "yellow", "dim"),
     "FAILED upload": ("✗ FAILED upload", "bold red", "red"),
