@@ -39,7 +39,7 @@ def load_config(path: Path) -> configparser.ConfigParser:
     """Load and minimally validate the INI config, or exit with an error."""
     if not path.exists():
         die(f"config not found at {path}\n       create it (see the README for a template).")
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(interpolation=None)
     cfg.read(path)
     for section in ("zotero", "remarkable"):
         if section not in cfg:

@@ -7,7 +7,6 @@ questionary) is deferred until a wizard command is actually used.
 
 from __future__ import annotations
 
-import configparser
 import shutil
 from configparser import ConfigParser
 from pathlib import Path
@@ -57,7 +56,7 @@ def _existing(path: Path) -> dict[str, str]:
     """Flatten an existing config into a single dict for use as defaults."""
     if not path.exists():
         return {}
-    cfg = ConfigParser()
+    cfg = ConfigParser(interpolation=None)
     cfg.read(path)
     values: dict[str, str] = {}
     for section in ("zotero", "remarkable"):
@@ -73,7 +72,7 @@ def _as_bool(value: str | None, default: bool) -> bool:
 
 
 def _to_configparser(values: dict[str, dict[str, str]]) -> ConfigParser:
-    cfg = ConfigParser()
+    cfg = ConfigParser(interpolation=None)
     for section, kv in values.items():
         cfg[section] = {k: v for k, v in kv.items() if v != ""}
     return cfg
@@ -196,7 +195,7 @@ def show_config(path: Path) -> None:
     if not path.exists():
         log(f"No config at {path}. Run 'zotrm config' to create one.")
         return
-    cfg = configparser.ConfigParser()
+    cfg = ConfigParser(interpolation=None)
     cfg.read(path)
     log(f"Config: {path}\n")
     for section in cfg.sections():

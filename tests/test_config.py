@@ -19,7 +19,11 @@ def test_load_config_missing_section_exits(tmp_path):
 
 def test_load_config_valid(tmp_path):
     path = tmp_path / "config.ini"
-    path.write_text("[zotero]\nlibrary_id = 1\napi_key = k\n[remarkable]\ncollection = C\n")
+    path.write_text(
+        "[zotero]\nlibrary_id = 1\napi_key = k\nwebdav_pass = p%40ss%word\n"
+        "[remarkable]\ncollection = C\n"
+    )
     cfg = load_config(path)
     assert cfg["zotero"]["library_id"] == "1"
+    assert cfg["zotero"]["webdav_pass"] == "p%40ss%word"
     assert cfg["remarkable"]["collection"] == "C"
