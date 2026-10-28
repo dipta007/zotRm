@@ -366,7 +366,7 @@ def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
     assert (out / "paper (K3) (annotated).pdf").exists()
 
 
-def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatch):
+def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatch, capsys):
     parser, storage, _out = cfg
     parser["remarkable"]["folder"] = "Papers"  # without leading slash -> normalized to /Papers
     # Item1 moved from /Papers/good to /Papers/Sub/good; Item2 stays at /Papers/keep
@@ -397,6 +397,7 @@ def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatc
     cmd_sync(parser, dry_run=False)
     assert ["rmapi", "mv", "/Papers/good", "/Papers/Sub"] in calls
     assert ["rmapi", "rm", "/Papers/deleted_from_zotero"] in calls
+    assert "0 pushed, 0 refreshed, 1 removed." in capsys.readouterr().out
 
     # When prune=false and find fails -> no rm calls and list_remote_files returns empty set
     parser["remarkable"]["prune"] = "false"
