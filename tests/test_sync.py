@@ -312,21 +312,31 @@ def test_sync_refresh_dry_run(cfg, fake_zot, monkeypatch):
     assert fake_zot.added_tags == []
 
 
-def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch):
+def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch, capsys):
     parser, _storage, out = cfg
     item = make_item("G", "Done paper", tags=["rm:synced", "rm:annotated"])
     fake_zot.collections_list = [make_collection("C1", "reMarkable")]
     fake_zot.items = {"C1": [item]}
     fake_zot.children_map = {"G": [make_pdf_child("attG", "good.pdf")]}
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
-    monkeypatch.setattr("zotrm.cli.reattach", lambda *a: True)
+    reattach_calls = []
+    monkeypatch.setattr("zotrm.cli.reattach", lambda *a: reattach_calls.append(a) or True)
     monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(True))
     monkeypatch.setattr("zotrm.remarkable.subprocess.run", _get_fake())
 
     cmd_sync(parser, dry_run=False)
 
-    assert (out / "good (annotated).pdf").exists()  # still refreshed
+    assert (out / "good (annotated).pdf").exists()  # refreshed when local file was missing
+    assert len(reattach_calls) == 1
     assert fake_zot.added_tags == []  # tag already present, not added again
+
+    # Second run with identical rendered bytes -> "up to date", skips reattach and count
+    capsys.readouterr()
+    cmd_sync(parser, dry_run=False)
+    out_text = capsys.readouterr().out
+    assert "up to date" in out_text
+    assert "0 pushed, 0 refreshed" in out_text
+    assert len(reattach_calls) == 1
 
 
 def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):

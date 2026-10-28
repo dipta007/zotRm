@@ -154,6 +154,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             continue
 
         new_tags = [disambig_tag] if is_dup and disambig_tag not in tags else []
+        prev_bytes = dest.read_bytes() if dest.exists() and TAG_DONE in tags else None
         with tempfile.TemporaryDirectory() as tmpdir:
             res = rmapi("get", remote, capture=True, cwd=tmpdir)
             bundle = next(Path(tmpdir).glob("*.rmdoc"), None) or next(
@@ -165,6 +166,8 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
                     rendered = render_annotations(bundle, src, dest)
         if not rendered:
             log(f"  no annotations yet   {title}")
+        elif prev_bytes is not None and dest.read_bytes() == prev_bytes:
+            log(f"  up to date      {title}")
         elif reattach(zot, cfg, key, dest):
             if TAG_DONE not in tags:
                 new_tags.append(TAG_DONE)
