@@ -53,12 +53,12 @@ def reattach(zot: Any, cfg: ConfigParser, parent_key: str, local_pdf: Path) -> b
     filename = local_pdf.name
     try:
         existing = annotated_child(zot, parent_key, filename)
-        if existing is not None:
-            zot.delete_item(existing)
         if mode == "webdav":
             _attach_webdav(zot, cfg, parent_key, local_pdf, filename)
         else:
             _attach_zotero(zot, parent_key, local_pdf, filename)
+        if existing is not None:
+            zot.delete_item(existing)
         return True
     except Exception as e:  # noqa: BLE001 - any backend error: keep the local copy, retry later
         log(f"    (re-attach failed: {e}; file saved to {local_pdf})")
@@ -74,7 +74,9 @@ def _attach_zotero(zot: Any, parent_key: str, local_pdf: Path, filename: str) ->
     cwd = os.getcwd()
     try:
         os.chdir(local_pdf.parent)
-        zot.attachment_simple([filename], parent_key)
+        res = zot.attachment_simple([filename], parent_key)
+        if res.get("failure"):
+            raise RuntimeError(f"Zotero attachment upload failed: {res['failure']}")
     finally:
         os.chdir(cwd)
 
@@ -92,19 +94,24 @@ def _attach_webdav(
     md5 = hashlib.md5(data).hexdigest()  # noqa: S324 - Zotero requires md5, not for security
     mtime = int(local_pdf.stat().st_mtime * 1000)
 
-    key = _create_attachment(zot, parent_key, filename, md5, mtime)
-
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(filename, data)
     prop = f'<properties version="1"><mtime>{mtime}</mtime><hash>{md5}</hash></properties>'
 
-    _webdav_put(f"{base}/zotero/{key}.zip", buf.getvalue(), user, password)
-    _webdav_put(f"{base}/zotero/{key}.prop", prop.encode(), user, password)
+    key, item = _create_attachment(zot, parent_key, filename, md5, mtime)
+    try:
+        _webdav_put(f"{base}/zotero/{key}.zip", buf.getvalue(), user, password)
+        _webdav_put(f"{base}/zotero/{key}.prop", prop.encode(), user, password)
+    except Exception:
+        zot.delete_item(item)
+        raise
 
 
-def _create_attachment(zot: Any, parent_key: str, filename: str, md5: str, mtime: int) -> str:
-    """Create an imported_file attachment item (metadata only) and return its key."""
+def _create_attachment(
+    zot: Any, parent_key: str, filename: str, md5: str, mtime: int
+) -> tuple[str, dict[str, Any]]:
+    """Create an imported_file attachment item (metadata only) and return (key, item)."""
     template = zot.item_template("attachment", "imported_file")
     template["title"] = filename
     template["filename"] = filename
@@ -113,7 +120,11 @@ def _create_attachment(zot: Any, parent_key: str, filename: str, md5: str, mtime
     template["md5"] = md5
     template["mtime"] = mtime
     resp = zot.create_items([template])
-    return str(resp["success"]["0"])
+    key = resp.get("success", {}).get("0")
+    if not key:
+        raise RuntimeError(f"Zotero attachment creation failed: {resp.get('failed')}")
+    item = resp.get("successful", {}).get("0", {"key": str(key), "version": 0})
+    return str(key), item
 
 
 def _webdav_put(url: str, body: bytes, user: str, password: str) -> None:
