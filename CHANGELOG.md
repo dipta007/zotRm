@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-28
+
+### Fixed
+
+- Check local `~/Zotero/storage` by default when `storage_dir` is not explicitly set in
+  `config.ini`, and fall back to downloading `<KEY>.zip` from WebDAV when `file_mode = webdav`
+  instead of failing with HTTP 404 against Zotero's cloud storage.
+
 ## [0.2.0] - 2026-10-27
 
 ### Changed
@@ -64,7 +72,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/dipta007/zotRm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dipta007/zotRm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/dipta007/zotRm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dipta007/zotRm/releases/tag/v0.1.0
