@@ -35,7 +35,7 @@ def _text(message: str, default: str = "", required: bool = False) -> str:
 
 def _password(message: str, default: str = "") -> str:
     # questionary.password cannot show a default; offer to keep the existing value.
-    if default and _confirm("Keep the existing API key?", default=True):
+    if default and _confirm(f"Keep the existing {message}?", default=True):
         return default
     return str(_ask(questionary.password(message))).strip()
 
