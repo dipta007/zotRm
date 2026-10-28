@@ -53,6 +53,9 @@ def reattach(zot: Any, cfg: ConfigParser, parent_key: str, local_pdf: Path) -> b
     filename = local_pdf.name
     try:
         existing = annotated_child(zot, parent_key, filename)
+        md5 = hashlib.md5(local_pdf.read_bytes()).hexdigest()  # noqa: S324
+        if existing is not None and existing["data"].get("md5") == md5:
+            return True
         if mode == "webdav":
             _attach_webdav(zot, cfg, parent_key, local_pdf, filename)
         else:

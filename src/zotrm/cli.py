@@ -108,19 +108,17 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             refreshed += 1
             continue
 
-        src, tmp = _source_pdf(cfg, zot, att_key, filename)
         with tempfile.TemporaryDirectory() as tmpdir:
             res = rmapi("get", remote, capture=True, cwd=tmpdir)
             bundle = next(Path(tmpdir).glob("*.rmdoc"), None) or next(
                 Path(tmpdir).glob("*.zip"), None
             )
-            rendered = (
-                res.returncode == 0
-                and bundle is not None
-                and render_annotations(bundle, Path(src), dest)
-            )
-        if tmp:
-            tmp.unlink(missing_ok=True)
+            rendered = False
+            if res.returncode == 0 and bundle is not None:
+                src, tmp = _source_pdf(cfg, zot, att_key, filename)
+                rendered = render_annotations(bundle, Path(src), dest)
+                if tmp:
+                    tmp.unlink(missing_ok=True)
         if not rendered:
             log(f"  no annotations yet   {title}")
             continue

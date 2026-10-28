@@ -71,6 +71,20 @@ def test_reattach_zotero_replaces_existing(tmp_path):
     assert zot.deleted == [existing]  # old copy removed after adding the new one
 
 
+def test_reattach_skips_when_md5_unchanged(tmp_path):
+    import hashlib
+
+    zot = FakeZotero()
+    pdf = _pdf(tmp_path)
+    existing = make_pdf_child("OLD", "good (annotated).pdf")
+    existing["data"]["md5"] = hashlib.md5(pdf.read_bytes()).hexdigest()
+    zot.children_map = {"P": [existing]}
+
+    assert reattach(zot, _cfg({"file_mode": "zotero"}), "P", pdf) is True
+    assert zot.attachments == []
+    assert zot.deleted == []
+
+
 def test_reattach_failure_returns_false(tmp_path, monkeypatch):
     zot = FakeZotero()
     existing = make_pdf_child("OLD", "good (annotated).pdf")
