@@ -51,18 +51,24 @@ def test_wizard_writes_config(tmp_path, monkeypatch):
 
 
 def test_wizard_webdav_collects_credentials(tmp_path, monkeypatch):
-    answers = _BASE + [str(tmp_path / "ann"), "webdav", "https://dav.example.com/me", "me", "pw"]
+    answers = _BASE + [
+        str(tmp_path / "ann"),
+        "webdav",
+        "https://dav.example.com/my%20files",
+        "me",
+        "p%ssw0rd%",
+    ]
     _patch(monkeypatch, answers)
 
     path = tmp_path / "config.ini"
     assert run_config_wizard(path) is True
 
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(interpolation=None)
     cfg.read(path)
     assert cfg["zotero"]["file_mode"] == "webdav"
-    assert cfg["zotero"]["webdav_url"] == "https://dav.example.com/me"
+    assert cfg["zotero"]["webdav_url"] == "https://dav.example.com/my%20files"
     assert cfg["zotero"]["webdav_user"] == "me"
-    assert cfg["zotero"]["webdav_pass"] == "pw"
+    assert cfg["zotero"]["webdav_pass"] == "p%ssw0rd%"
 
 
 def test_wizard_prefills_and_keeps_api_key(tmp_path, monkeypatch):
@@ -128,12 +134,14 @@ def test_show_config(tmp_path, capsys):
     assert "No config" in capsys.readouterr().out
 
     path.write_text(
-        "[zotero]\nlibrary_id = 7\napi_key = topsecret\nfile_mode = webdav\n"
-        "webdav_pass = davsecret\n[remarkable]\ncollection = C\n"
+        "[zotero]\nlibrary_id = 7\napi_key = top%secret\nfile_mode = webdav\n"
+        "webdav_url = https://dav.example.com/my%20dav\n"
+        "webdav_pass = dav%secret\n[remarkable]\ncollection = C\n"
     )
     show_config(path)
     out = capsys.readouterr().out
     assert "library_id = 7" in out
-    assert "topsecret" not in out  # api key masked
-    assert "davsecret" not in out  # webdav password masked
+    assert "https://dav.example.com/my%20dav" in out
+    assert "top%secret" not in out  # api key masked
+    assert "dav%secret" not in out  # webdav password masked
     assert "********" in out
