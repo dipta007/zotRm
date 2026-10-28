@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-10-28
+
+### Fixed
+
+- Batch new tags (`rm:synced:<key>` and `rm:annotated`) into a single `zot.add_tags` call
+  per item so Zotero does not reject a second `PATCH` with HTTP 412 (`Precondition Failed`).
+
 ## [0.2.5] - 2026-10-28
 
 ### Fixed
@@ -106,7 +113,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/dipta007/zotRm/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dipta007/zotRm/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dipta007/zotRm/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/dipta007/zotRm/compare/v0.2.2...v0.2.3
