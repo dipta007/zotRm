@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-28
+
+### Fixed
+
+- Scope remote filename disambiguation per-folder `(folder, stem)` so the same paper in two
+  different sub-collections is not falsely renamed or marked for removal.
+- Retry `rmapi` commands with backoff (`2s`, `5s`, `10s`) when reMarkable's auth endpoint
+  returns HTTP 429 (`status 429`).
+- Verify `rmapi rm`, `rmapi mv`, and `rmapi mkdir` exit codes before logging `removed` /
+  `moved` or caching created folders.
+
 ## [0.2.4] - 2026-10-28
 
 ### Changed
@@ -95,7 +106,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/dipta007/zotRm/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/dipta007/zotRm/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/dipta007/zotRm/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/dipta007/zotRm/compare/v0.2.1...v0.2.2
