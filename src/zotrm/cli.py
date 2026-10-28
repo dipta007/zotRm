@@ -132,9 +132,6 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pushed += 1
             continue
 
-        if is_dup and disambig_tag not in tags:
-            zot.add_tags(item, disambig_tag)
-
         if remote not in on_tablet:
             stem = Path(filename).stem
             old = next((p for p in sorted(unclaimed) if Path(p).name in (doc_stem, stem)), None)
@@ -156,6 +153,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             refreshed += 1
             continue
 
+        new_tags = [disambig_tag] if is_dup and disambig_tag not in tags else []
         with tempfile.TemporaryDirectory() as tmpdir:
             res = rmapi("get", remote, capture=True, cwd=tmpdir)
             bundle = next(Path(tmpdir).glob("*.rmdoc"), None) or next(
@@ -167,15 +165,16 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
                     rendered = render_annotations(bundle, src, dest)
         if not rendered:
             log(f"  no annotations yet   {title}")
-            continue
-
-        if reattach(zot, cfg, key, dest):
+        elif reattach(zot, cfg, key, dest):
             if TAG_DONE not in tags:
-                zot.add_tags(item, TAG_DONE)
+                new_tags.append(TAG_DONE)
             log(f"  refreshed       {title}  ->  {dest}")
+            refreshed += 1
         else:
             log(f"  saved locally   {title}  ->  {dest}")
-        refreshed += 1
+            refreshed += 1
+        if new_tags:
+            zot.add_tags(item, *new_tags)
 
     removed = 0
     if _truthy(rm.get("prune", "true")):
