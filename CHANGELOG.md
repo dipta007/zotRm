@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-10-28
+
+### Fixed
+
+- Log `✓ up to date` and skip `reattach` / `refreshed` counting when an already-annotated
+  paper's rendered PDF bytes have not changed since the last sync.
+
 ## [0.2.7] - 2026-10-28
 
 ### Added
@@ -121,7 +128,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/dipta007/zotRm/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/dipta007/zotRm/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/dipta007/zotRm/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/dipta007/zotRm/compare/v0.2.4...v0.2.5
