@@ -301,10 +301,13 @@ def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch):
 def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
     parser, storage, out = cfg
     i1 = make_item("K1", "Paper 1", tags=["rm:synced"])
-    i2 = make_item("K2", "Paper 2")  # same filename "paper.pdf", needs push
-    i3 = make_item("K3", "Paper 3", tags=["rm:synced"])  # same filename, needs refresh
+    i1["data"]["dateAdded"] = "2026-01-02T00:00:00Z"
+    i2 = make_item("K2", "Paper 2")  # older dateAdded, but unsynced -> disambiguated
+    i2["data"]["dateAdded"] = "2026-01-01T00:00:00Z"
+    i3 = make_item("K3", "Paper 3", tags=["rm:synced", "rm:synced:K3"])
+    i3["data"]["dateAdded"] = "2026-01-01T00:00:00Z"
     fake_zot.collections_list = [make_collection("C1", "reMarkable")]
-    fake_zot.items = {"C1": [i1, i2, i3]}
+    fake_zot.items = {"C1": [i3, i2, i1]}
     fake_zot.children_map = {
         "K1": [make_pdf_child("att1", "paper.pdf")],
         "K2": [make_pdf_child("att2", "paper.pdf")],
@@ -326,5 +329,7 @@ def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
         ["rmapi", "get", "/Papers/paper"],
         ["rmapi", "get", "/Papers/paper (K3)"],
     ]
+    assert ("K2", "rm:synced") in fake_zot.added_tags
+    assert ("K2", "rm:synced:K2") in fake_zot.added_tags
     assert (out / "paper (annotated).pdf").exists()
     assert (out / "paper (K3) (annotated).pdf").exists()
