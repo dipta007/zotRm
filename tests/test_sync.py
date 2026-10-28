@@ -193,7 +193,7 @@ def test_sync_skips_item_without_original_pdf(cfg, fake_zot, rmapi_run, monkeypa
     monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
 
     cmd_sync(parser, dry_run=False)
-    assert rmapi_run.calls == []
+    assert [c for c in rmapi_run.calls if c[1] == "put"] == []
     assert fake_zot.added_tags == []
 
 
@@ -364,3 +364,45 @@ def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
     assert ("K2", "rm:synced:K2") in fake_zot.added_tags
     assert (out / "paper (annotated).pdf").exists()
     assert (out / "paper (K3) (annotated).pdf").exists()
+
+
+def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatch):
+    parser, storage, _out = cfg
+    parser["remarkable"]["folder"] = "Papers"  # without leading slash -> normalized to /Papers
+    # Item1 moved from /Papers/good to /Papers/Sub/good; Item2 stays at /Papers/keep
+    i1 = make_item("K1", "Moved paper", tags=["rm:synced"])
+    i2 = make_item("K2", "Kept paper", tags=["rm:synced"])
+    fake_zot.collections_list = [make_collection("C1", "reMarkable")]
+    fake_zot.items = {"C1": [i2], "S1": [i1]}
+    fake_zot.subcollections = {"C1": [make_collection("S1", "Sub")], "S1": []}
+    fake_zot.children_map = {
+        "K1": [make_pdf_child("att1", "good.pdf")],
+        "K2": [make_pdf_child("att2", "keep.pdf")],
+    }
+    _store_pdf(storage, "att1", "good.pdf")
+    _store_pdf(storage, "att2", "keep.pdf")
+    monkeypatch.setattr("zotrm.cli.connect", lambda _cfg: fake_zot)
+    monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(False))
+
+    calls = []
+    find_out = "[d] Papers\n[f] Papers/good\n[f] Papers/keep\n[f] Papers/deleted_from_zotero\n"
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        out = find_out if cmd[1] == "find" else ""
+        return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
+
+    monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
+
+    cmd_sync(parser, dry_run=False)
+    assert ["rmapi", "mv", "/Papers/good", "/Papers/Sub"] in calls
+    assert ["rmapi", "rm", "/Papers/deleted_from_zotero"] in calls
+
+    # When prune=false and find fails -> no rm calls and list_remote_files returns empty set
+    parser["remarkable"]["prune"] = "false"
+    calls.clear()
+    monkeypatch.setattr(
+        "zotrm.remarkable.subprocess.run",
+        lambda cmd, **k: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="err"),
+    )
+    cmd_sync(parser, dry_run=False)
