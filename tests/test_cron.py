@@ -42,13 +42,15 @@ def test_build_schedule_rejects_bad_input(kwargs):
         build_schedule(**kwargs)
 
 
-def test_zotrm_command_uses_exe_and_config(monkeypatch):
+def test_zotrm_command_uses_exe_and_config(tmp_path, monkeypatch):
     monkeypatch.setattr("zotrm.cron.shutil.which", lambda _n: "/bin/zotrm")
     assert zotrm_command(DEFAULT_CONFIG) == "/bin/zotrm sync"
     custom = Path("/tmp/other.ini")
     assert zotrm_command(custom) == f"/bin/zotrm --config {custom} sync"
     spaced = Path("/Users/jane doe/zotrm.ini")
     assert zotrm_command(spaced) == "/bin/zotrm --config '/Users/jane doe/zotrm.ini' sync"
+    monkeypatch.chdir(tmp_path)
+    assert zotrm_command(Path("./rel.ini")) == f"/bin/zotrm --config {tmp_path / 'rel.ini'} sync"
 
 
 def test_zotrm_command_falls_back_to_module(monkeypatch):

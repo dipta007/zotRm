@@ -207,6 +207,7 @@ def main(argv: list[str] | None = None) -> None:
     cron_p.add_argument("--show", action="store_true", help="show the scheduled sync, if any")
 
     args = p.parse_args(argv)
+    args.config = args.config.expanduser().absolute()
 
     if args.command == "config":
         from zotrm.wizard import run_config_wizard, show_config
