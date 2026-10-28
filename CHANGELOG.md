@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-27
+
 ### Changed
 
 - Collapsed the workflow into a single `zotrm sync` command (removed `push` and `pull`).
@@ -16,17 +18,27 @@ All notable changes to this project are documented here. The format is based on
 
 - **reMarkable Paper Pro (v6) annotation support.** `rmapi`'s renderer can't read the
   Paper Pro's v6 `.rm` format, so `sync` now downloads the raw bundle (`rmapi get`) and
-  rebuilds annotations itself (`rmscene` + `pypdf`): text highlights become editable PDF
-  `/Highlight` annotations (Zotero imports them as native highlights, carrying the text),
-  and pen strokes become `/Ink` with an appearance stream. New deps: `rmscene`, `pypdf`.
+  rebuilds annotations itself (`rmscene` + `pypdf`): text highlights (including multi-line
+  highlights) become editable PDF `/Highlight` annotations (Zotero imports them as native
+  highlights, carrying the text), and pen strokes become `/Ink` with an appearance stream
+  (skipping eraser strokes). New deps: `rmscene`, `pypdf`.
 - `file_mode` setting (`zotero` | `webdav` | `none`) selecting where the annotated copy is
   stored, including a **WebDAV backend** that uploads `<KEY>.zip` + `<KEY>.prop` to
   `{webdav_url}/zotero/`. The wizard collects WebDAV URL + credentials.
 
 ### Fixed
 
-- Re-attach failures no longer leave an orphaned attachment or wrongly mark a paper done,
-  and the annotated copy keeps a clean basename filename.
+- Re-attach failures no longer delete the previous annotated attachment, leave an orphaned
+  attachment, or wrongly mark a paper done, and the annotated copy keeps a clean basename
+  filename.
+- Unchanged annotated PDFs (matching MD5) skip redundant Zotero/WebDAV delete and
+  re-upload on subsequent syncs.
+- Duplicate PDF filenames in a collection are deterministically disambiguated with
+  `(<item_key>)`.
+- `ConfigParser` interpolation is disabled so `%` in passwords or WebDAV URLs works;
+  `config.ini` is written with `0600` permissions; `~` and relative paths are expanded for
+  `storage_dir`, `output_dir`, and `--config`; cron paths are shell-quoted and `rmapi`
+  searches common Homebrew/user binary paths under cron.
 
 ## [0.1.1] - 2026-06-24
 
@@ -52,6 +64,7 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/dipta007/zotRm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/dipta007/zotRm/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/dipta007/zotRm/releases/tag/v0.1.0
