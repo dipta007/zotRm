@@ -73,7 +73,8 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
 
     pushed = 0
     refreshed = 0
-    seen_stems: set[str] = set()
+    seen_stems: set[tuple[str, str]] = set()
+    seen_local: set[str] = set()
     entries = sorted(
         iter_items(zot, coll_key, base, mirror),
         key=lambda pair: (
@@ -83,7 +84,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pair[0]["key"],
         ),
     )
-    plan: list[tuple[Any, str, str, str, bool, str, str]] = []
+    plan: list[tuple[Any, str, str, str, bool, str, str, str]] = []
     for item, folder in entries:
         key = item["key"]
         title = item["data"].get("title", key)[:70]
@@ -94,16 +95,18 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
         att_key, filename = child
         stem = Path(filename).stem
         disambig_tag = f"{TAG_SYNCED}:{key}"
-        is_dup = disambig_tag in tags_of(item) or stem.lower() in seen_stems
+        is_dup = disambig_tag in tags_of(item) or (folder.lower(), stem.lower()) in seen_stems
         doc_stem = f"{stem} ({key})" if is_dup else stem
-        seen_stems.add(doc_stem.lower())
+        seen_stems.add((folder.lower(), doc_stem.lower()))
+        local_stem = f"{doc_stem} ({key})" if doc_stem.lower() in seen_local else doc_stem
+        seen_local.add(local_stem.lower())
         remote = f"{folder.rstrip('/')}/{doc_stem}"
-        plan.append((item, folder, att_key, filename, is_dup, doc_stem, remote))
+        plan.append((item, folder, att_key, filename, is_dup, doc_stem, local_stem, remote))
 
     on_tablet = set() if dry_run else list_remote_files(base)
     unclaimed = on_tablet - {remote for *_, remote in plan}
 
-    for item, folder, att_key, filename, is_dup, doc_stem, remote in plan:
+    for item, folder, att_key, filename, is_dup, doc_stem, local_stem, remote in plan:
         key = item["key"]
         title = item["data"].get("title", key)[:70]
         tags = tags_of(item)
@@ -129,18 +132,25 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             pushed += 1
             continue
 
+        if is_dup and disambig_tag not in tags:
+            zot.add_tags(item, disambig_tag)
+
         if remote not in on_tablet:
-            old = next((p for p in sorted(unclaimed) if Path(p).name == doc_stem), None)
+            stem = Path(filename).stem
+            old = next((p for p in sorted(unclaimed) if Path(p).name in (doc_stem, stem)), None)
             if old:
                 unclaimed.discard(old)
                 ensure_remote_folder(folder)
-                rmapi("mv", old, folder, capture=True)
-                log(f"  moved           {old}  ->  {folder}")
+                mv_target = folder if Path(old).name == doc_stem else remote
+                if rmapi("mv", old, mv_target, capture=True).returncode == 0:
+                    log(f"  moved           {old}  ->  {mv_target}")
+                else:
+                    remote = old
 
         # Already on the tablet: download the raw bundle and rebuild the
         # annotations onto the original PDF (rmapi can't render the Paper Pro's
         # v6 format, so we do it ourselves with render_annotations).
-        dest = out_dir / f"{doc_stem}{ANNOTATED_SUFFIX}.pdf"
+        dest = out_dir / f"{local_stem}{ANNOTATED_SUFFIX}.pdf"
         if dry_run:
             log(f"  would refresh   {title}  ->  {dest}")
             refreshed += 1
@@ -170,9 +180,9 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
     removed = 0
     if _truthy(rm.get("prune", "true")):
         for stale in sorted(unclaimed):
-            rmapi("rm", stale, capture=True)
-            log(f"  removed         {stale}")
-            removed += 1
+            if rmapi("rm", stale, capture=True).returncode == 0:
+                log(f"  removed         {stale}")
+                removed += 1
 
     suffix = " (dry run)" if dry_run else ""
     log(f"\nsync complete{suffix}: {pushed} pushed, {refreshed} refreshed, {removed} removed.")

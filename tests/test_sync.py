@@ -332,11 +332,11 @@ def test_sync_refresh_already_done_not_retagged(cfg, fake_zot, monkeypatch):
 def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
     parser, storage, out = cfg
     i1 = make_item("K1", "Paper 1", tags=["rm:synced"])
-    i1["data"]["dateAdded"] = "2026-01-02T00:00:00Z"
-    i2 = make_item("K2", "Paper 2")  # older dateAdded, but unsynced -> disambiguated
+    i1["data"]["dateAdded"] = "2026-01-01T00:00:00Z"
+    i2 = make_item("K2", "Paper 2")  # unsynced -> disambiguated on push
     i2["data"]["dateAdded"] = "2026-01-01T00:00:00Z"
-    i3 = make_item("K3", "Paper 3", tags=["rm:synced", "rm:synced:K3"])
-    i3["data"]["dateAdded"] = "2026-01-01T00:00:00Z"
+    i3 = make_item("K3", "Paper 3", tags=["rm:synced"])  # synced without disambig_tag -> tagged
+    i3["data"]["dateAdded"] = "2026-01-02T00:00:00Z"
     fake_zot.collections_list = [make_collection("C1", "reMarkable")]
     fake_zot.items = {"C1": [i3, i2, i1]}
     fake_zot.children_map = {
@@ -362,6 +362,7 @@ def test_sync_disambiguates_duplicate_filenames(cfg, fake_zot, monkeypatch):
     ]
     assert ("K2", "rm:synced") in fake_zot.added_tags
     assert ("K2", "rm:synced:K2") in fake_zot.added_tags
+    assert ("K3", "rm:synced:K3") in fake_zot.added_tags
     assert (out / "paper (annotated).pdf").exists()
     assert (out / "paper (K3) (annotated).pdf").exists()
 
@@ -385,12 +386,16 @@ def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatc
     monkeypatch.setattr("zotrm.cli.render_annotations", _fake_render(False))
 
     calls = []
-    find_out = "[d] Papers\n[f] Papers/good\n[f] Papers/keep\n[f] Papers/deleted_from_zotero\n"
+    find_out = (
+        "[d] Papers\n[f] Papers/good\n[f] Papers/keep\n"
+        "[f] Papers/deleted_from_zotero\n[f] Papers/rm_fail\n"
+    )
 
     def fake_run(cmd, **kwargs):
         calls.append(list(cmd))
         out = find_out if cmd[1] == "find" else ""
-        return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
+        code = 1 if cmd[1] == "rm" and cmd[2].endswith("rm_fail") else 0
+        return subprocess.CompletedProcess(cmd, code, stdout=out, stderr="")
 
     monkeypatch.setattr("zotrm.remarkable.subprocess.run", fake_run)
 
@@ -398,6 +403,18 @@ def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatc
     assert ["rmapi", "mv", "/Papers/good", "/Papers/Sub"] in calls
     assert ["rmapi", "rm", "/Papers/deleted_from_zotero"] in calls
     assert "0 pushed, 0 refreshed, 1 removed." in capsys.readouterr().out
+
+    # Failed mv and failed mkdir do not falsely log moved or cache uncreated folders
+    calls.clear()
+    remarkable._MADE_FOLDERS.clear()
+    monkeypatch.setattr(
+        "zotrm.remarkable.subprocess.run",
+        lambda cmd, **k: subprocess.CompletedProcess(
+            cmd, 0 if cmd[1] == "find" else 1, stdout=find_out, stderr="err"
+        ),
+    )
+    cmd_sync(parser, dry_run=False)
+    assert "/Papers/Sub" not in remarkable._MADE_FOLDERS
 
     # When prune=false and find fails -> no rm calls and list_remote_files returns empty set
     parser["remarkable"]["prune"] = "false"
@@ -407,3 +424,15 @@ def test_sync_moves_relocated_and_prunes_removed_files(cfg, fake_zot, monkeypatc
         lambda cmd, **k: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="err"),
     )
     cmd_sync(parser, dry_run=False)
+
+
+def test_rmapi_retries_on_429_rate_limit(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr("zotrm.remarkable.time.sleep", lambda s: sleeps.append(s))
+    monkeypatch.setattr(
+        "zotrm.remarkable.subprocess.run",
+        lambda cmd, **k: subprocess.CompletedProcess(cmd, 1, stdout="", stderr="status 429"),
+    )
+    res = remarkable.rmapi("ls", capture=True)
+    assert res.returncode == 1
+    assert len(sleeps) == 3
