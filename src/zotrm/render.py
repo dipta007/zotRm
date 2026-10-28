@@ -34,6 +34,7 @@ from pypdf.generic import (
     TextStringObject,
 )
 from rmscene import read_blocks
+from rmscene.scene_items import Pen
 
 # These libraries log chatty warnings (pypdf annotation-copy notes, rmscene
 # "newer format" notes) that aren't actionable for users; quiet them.
@@ -67,9 +68,10 @@ def parse_rm(rm_bytes: bytes) -> tuple[list[tuple[list[Any], str]], list[list[An
         rects = getattr(val, "rectangles", None)
         text = getattr(val, "text", None)
         points = getattr(val, "points", None)
+        tool = getattr(val, "tool", None)
         if rects and text is not None:
             highlights.append((list(rects), text))
-        elif points:
+        elif points and tool not in (Pen.ERASER, Pen.ERASER_AREA):
             strokes.append(list(points))
     return highlights, strokes
 

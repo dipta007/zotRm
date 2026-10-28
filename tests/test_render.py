@@ -52,11 +52,16 @@ def test_rm_to_pdf_matches_calibration():
 
 
 def test_parse_rm_splits_highlights_and_strokes(monkeypatch):
+    from rmscene.scene_items import Pen
+
     r1 = SimpleNamespace(x=1, y=2, w=3, h=4)
     r2 = SimpleNamespace(x=1, y=10, w=5, h=4)
     blocks = [
         _block(SimpleNamespace(rectangles=[r1, r2], text="hi")),  # multi-line highlight
         _block(SimpleNamespace(points=[SimpleNamespace(x=0, y=0)])),  # stroke
+        _block(
+            SimpleNamespace(points=[SimpleNamespace(x=0, y=0)], tool=Pen.ERASER)
+        ),  # eraser -> skipped
         _block(None),  # no value -> skipped
         _block(SimpleNamespace(other=1)),  # neither -> skipped
     ]
