@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-28
+
+### Fixed
+
+- Refresh `rmapi`'s local tree cache (`rmapi refresh`), recreate the remote folder hierarchy,
+  and retry `rmapi put` once when an upload fails with `directory doesn't exist` after a
+  folder was renamed or deleted on the tablet.
+
 ## [0.2.1] - 2026-10-28
 
 ### Fixed
@@ -72,7 +80,8 @@ All notable changes to this project are documented here. The format is based on
 - Full type hints (`mypy --strict`), `ruff` lint/format, and a test suite at 100%
   coverage.
 
-[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/dipta007/zotRm/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/dipta007/zotRm/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/dipta007/zotRm/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dipta007/zotRm/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/dipta007/zotRm/compare/v0.1.0...v0.1.1
