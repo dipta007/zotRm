@@ -74,7 +74,16 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
     pushed = 0
     refreshed = 0
     seen_stems: set[str] = set()
-    for item, folder in iter_items(zot, coll_key, base, mirror):
+    entries = sorted(
+        iter_items(zot, coll_key, base, mirror),
+        key=lambda pair: (
+            TAG_SYNCED not in tags_of(pair[0]),
+            f"{TAG_SYNCED}:{pair[0]['key']}" in tags_of(pair[0]),
+            pair[0]["data"].get("dateAdded", ""),
+            pair[0]["key"],
+        ),
+    )
+    for item, folder in entries:
         key = item["key"]
         title = item["data"].get("title", key)[:70]
         tags = tags_of(item)
@@ -85,8 +94,10 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             continue
         att_key, filename = child
         stem = Path(filename).stem
-        doc_stem = f"{stem} ({key})" if stem.lower() in seen_stems else stem
-        seen_stems.add(stem.lower())
+        disambig_tag = f"{TAG_SYNCED}:{key}"
+        is_dup = disambig_tag in tags or stem.lower() in seen_stems
+        doc_stem = f"{stem} ({key})" if is_dup else stem
+        seen_stems.add(doc_stem.lower())
 
         if TAG_SYNCED not in tags:
             # First time: push the original PDF to the tablet.
@@ -100,7 +111,7 @@ def cmd_sync(cfg: ConfigParser, dry_run: bool) -> None:
             if res.returncode != 0:
                 log(f"  FAILED upload   {title}\n{res.stderr.strip()}")
                 continue
-            zot.add_tags(item, TAG_SYNCED)
+            zot.add_tags(item, *([TAG_SYNCED, disambig_tag] if is_dup else [TAG_SYNCED]))
             log(f"  pushed          {title}  ->  {folder}")
             pushed += 1
             continue
